@@ -1,0 +1,22 @@
+{
+  "name": "vigilate",
+  "version": "0.1.0",
+  "description": "A web program that used to monitor severs status",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://gitlab.com/gjerry134679/vigilate.git"
+  },
+  "keywords": [
+    "websocket"
+  ],
+  "author": "Chia-Yu Chang",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://gitlab.com/gjerry134679/vigilate/issues"
+  },
+  "homepage": "https://gitlab.com/gjerry134679/vigilate#readme"
+}
