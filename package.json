@@ -1,28 +1,31 @@
 {
   "name": "vigilate",
   "version": "0.0.1",
-  "description": "A chatroom using WebSocket protocal",
-  "main": "index.js",
+  "description": "\"A webapp using ws protocal\"",
+  "main": "src/js/index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "build": "webpack"
   },
   "repository": {
     "type": "git",
-    "url": "gitlab.com:gjerry134679/vigilate"
+    "url": "git+ssh://git@gitlab.com/gjerry134679/vigilate.git"
   },
   "author": "Chia-Yu Chang",
   "license": "ISC",
+  "bugs": {
+    "url": "https://gitlab.com/gjerry134679/vigilate/issues"
+  },
+  "homepage": "https://gitlab.com/gjerry134679/vigilate#readme",
   "dependencies": {
+    "notie": "^4.3.1",
     "path": "^0.12.7",
-    "sweetalert2": "^11.4.26"
+    "pusher-js": "^7.4.0",
+    "sweetalert2": "^11.4.28",
+    "webpack": "^5.74.0"
   },
   "devDependencies": {
-    "webpack": "^5.74.0",
+    "dotenv-webpack": "^8.0.1",
     "webpack-cli": "^4.10.0"
-  },
-  "keywords": [
-    "websocket",
-    "service monitor"
-  ]
+  }
 }
