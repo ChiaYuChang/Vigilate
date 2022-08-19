@@ -1,12 +1,13 @@
 package config
 
 import (
-	"github.com/alexedwards/scs/v2"
-	"github.com/pusher/pusher-http-go"
-	"github.com/robfig/cron/v3"
-	"github.com/tsawler/vigilate/internal/channeldata"
-	"github.com/tsawler/vigilate/internal/driver"
 	"html/template"
+
+	"github.com/alexedwards/scs/v2"
+	"github.com/pusher/pusher-http-go/v5"
+	"github.com/robfig/cron/v3"
+	"gitlab.com/gjerry134679/vigilate/pkg/channeldata"
+	"gitlab.com/gjerry134679/vigilate/pkg/driver"
 )
 
 // AppConfig holds application configuration

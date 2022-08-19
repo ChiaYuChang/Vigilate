@@ -1,7 +1,7 @@
 package templates
 
 import (
-	"github.com/tsawler/vigilate/internal/models"
+	"gitlab.com/gjerry134679/vigilate/pkg/models"
 )
 
 // TemplateData defines template data

@@ -5,12 +5,12 @@ import (
 	"fmt"
 	"github.com/alexedwards/scs/postgresstore"
 	"github.com/alexedwards/scs/v2"
-	"github.com/pusher/pusher-http-go"
-	"github.com/tsawler/vigilate/internal/channeldata"
-	"github.com/tsawler/vigilate/internal/config"
-	"github.com/tsawler/vigilate/internal/driver"
-	"github.com/tsawler/vigilate/internal/handlers"
-	"github.com/tsawler/vigilate/internal/helpers"
+	"github.com/pusher/pusher-http-go/v5"
+	"gitlab.com/gjerry134679/vigilate/pkg/channeldata"
+	"gitlab.com/gjerry134679/vigilate/pkg/config"
+	"gitlab.com/gjerry134679/vigilate/pkg/driver"
+	"gitlab.com/gjerry134679/vigilate/pkg/handlers"
+	"gitlab.com/gjerry134679/vigilate/pkg/helpers"
 	"log"
 	"net/http"
 	"os"
@@ -100,7 +100,7 @@ func setupApp() (*string, error) {
 		Identifier:   *identifier,
 	}
 
-	app = a
+	app = a // See main.go
 
 	repo = handlers.NewPostgresqlHandlers(db, &app)
 	handlers.NewHandlers(repo, &app)

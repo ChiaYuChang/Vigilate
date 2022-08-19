@@ -2,8 +2,9 @@ package dbrepo
 
 import (
 	"database/sql"
-	"github.com/tsawler/vigilate/internal/config"
-	"github.com/tsawler/vigilate/internal/repository"
+
+	"gitlab.com/gjerry134679/vigilate/pkg/config"
+	"gitlab.com/gjerry134679/vigilate/pkg/repository"
 )
 
 var app *config.AppConfig

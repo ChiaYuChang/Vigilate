@@ -1,6 +1,8 @@
 package helpers
 
-import "github.com/tsawler/vigilate/internal/channeldata"
+import (
+	"gitlab.com/gjerry134679/vigilate/pkg/channeldata"
+)
 
 // SendEmail sends an email
 func SendEmail(mailMessage channeldata.MailData) {

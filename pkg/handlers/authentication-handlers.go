@@ -4,12 +4,13 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"fmt"
-	"github.com/tsawler/vigilate/internal/helpers"
-	"github.com/tsawler/vigilate/internal/models"
 	"log"
 	"net/http"
 	"strings"
 	"time"
+
+	"gitlab.com/gjerry134679/vigilate/pkg/helpers"
+	"gitlab.com/gjerry134679/vigilate/pkg/models"
 )
 
 // LoginScreen shows the home (login) screen

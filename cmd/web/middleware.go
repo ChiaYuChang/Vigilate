@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 	"github.com/justinas/nosurf"
-	"github.com/tsawler/vigilate/internal/helpers"
+	"gitlab.com/gjerry134679/vigilate/pkg/helpers"
 	"net/http"
 	"strconv"
 	"strings"

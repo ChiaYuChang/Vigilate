@@ -3,11 +3,12 @@ package driver
 import (
 	"database/sql"
 	"fmt"
+	"log"
+	"time"
+
 	_ "github.com/jackc/pgconn" // need this and next two for pgx
 	_ "github.com/jackc/pgx/v4"
 	_ "github.com/jackc/pgx/v4/stdlib"
-	"log"
-	"time"
 )
 
 // DB holds the database connection information

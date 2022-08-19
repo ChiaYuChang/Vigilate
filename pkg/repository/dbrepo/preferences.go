@@ -2,9 +2,10 @@ package dbrepo
 
 import (
 	"context"
-	"github.com/tsawler/vigilate/internal/models"
 	"log"
 	"time"
+
+	"gitlab.com/gjerry134679/vigilate/pkg/models"
 )
 
 // AllPreferences returns a slice of preferences

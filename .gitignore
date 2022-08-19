@@ -1,2 +1,8 @@
 node_modules/
 starter/
+.vscode/
+
+package-lock.json
+go.sum
+.env
+vigilate

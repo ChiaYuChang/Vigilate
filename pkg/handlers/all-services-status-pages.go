@@ -1,8 +1,9 @@
 package handlers
 
 import (
-	"github.com/tsawler/vigilate/internal/helpers"
 	"net/http"
+
+	"gitlab.com/gjerry134679/vigilate/pkg/helpers"
 )
 
 // AllHealthyServices lists all healthy services
