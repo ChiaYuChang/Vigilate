@@ -31,11 +31,55 @@ type User struct {
 	Preferences map[string]string
 }
 
+type TimeInfo struct {
+	CreatedAt time.Time
+	UpdatedAt time.Time
+}
+
 // Preference model
 type Preference struct {
 	ID         int
 	Name       string
 	Preference []byte
-	CreatedAt  time.Time
-	UpdatedAt  time.Time
+	TimeInfo
+}
+
+type Host struct {
+	ID            int
+	HostName      string
+	CanonicalName string
+	URL           string
+	IP            string
+	IPv6          string
+	Location      string
+	OS            string
+	Active        int
+	TimeInfo
+}
+
+type Services struct {
+	ID          int
+	ServiceName string
+	Active      int
+	Icon        string
+	TimeInfo
+}
+
+type ServiceStatus int
+
+const (
+	ServiceStatusPending ServiceStatus = iota
+	ServiceStatusOK
+)
+
+type HostService struct {
+	ID             string
+	HostID         int
+	ServiceID      int
+	Activate       int
+	ScheduleNumber int
+	ScheduleUnit   int
+	Status         ServiceStatus
+	LastCheck      time.Time
+	TimeInfo
 }
