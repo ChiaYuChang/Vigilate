@@ -12,8 +12,8 @@ echo "> Building vigilate\n"
 go build -o vigilate cmd/web/*.go && ./vigilate \
 -db=$DEV_DB_NAME \
 -domain=192.168.50.168 \
--dbuser=$DEV_DB_USER \
--dbpass=$DEV_DB_PASSWORD \
+-dbuser=$DB_USER_ACC \
+-dbpass=$DB_USER_PWD \
 -pusherHost=$PUSHER_HOST \
 -pusherKey=$PUSHER_KEY \
 -pusherSecret=$PUSHER_SECRET \

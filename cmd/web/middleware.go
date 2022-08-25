@@ -2,12 +2,13 @@ package main
 
 import (
 	"fmt"
-	"github.com/justinas/nosurf"
-	"gitlab.com/gjerry134679/vigilate/pkg/helpers"
 	"net/http"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/justinas/nosurf"
+	"gitlab.com/gjerry134679/vigilate/pkg/helpers"
 )
 
 // SessionLoad loads the session on requests

@@ -1,14 +1,14 @@
 <script src="/static/bundle.js"></script>
 <script>
     {{ if .Flash != ""}}
-    successAlert('{{.Flash}}')
+    mylib.successAlert('{{.Flash}}')
     {{ end }}
 
     {{ if .Warning != ""}}
-    warningAlert('{{.Warning}}')
+    mylib.warningAlert('{{.Warning}}')
     {{ end }}
 
     {{ if .Error != ""}}
-    errorAlert('{{.Error}}')
+    mylib.errorAlert('{{.Error}}')
     {{ end }}
 </script>

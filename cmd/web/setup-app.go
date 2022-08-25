@@ -3,6 +3,11 @@ package main
 import (
 	"flag"
 	"fmt"
+	"log"
+	"net/http"
+	"os"
+	"time"
+
 	"github.com/alexedwards/scs/postgresstore"
 	"github.com/alexedwards/scs/v2"
 	"github.com/pusher/pusher-http-go/v5"
@@ -11,10 +16,6 @@ import (
 	"gitlab.com/gjerry134679/vigilate/pkg/driver"
 	"gitlab.com/gjerry134679/vigilate/pkg/handlers"
 	"gitlab.com/gjerry134679/vigilate/pkg/helpers"
-	"log"
-	"net/http"
-	"os"
-	"time"
 )
 
 func setupApp() (*string, error) {

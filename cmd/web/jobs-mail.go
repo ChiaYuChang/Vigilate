@@ -7,11 +7,12 @@ import (
 	"github.com/aymerick/douceur/inliner"
 	"gitlab.com/gjerry134679/vigilate/pkg/channeldata"
 
-	mail "github.com/xhit/go-simple-mail/v2"
 	"html/template"
 	"log"
 	"strconv"
 	"time"
+
+	mail "github.com/xhit/go-simple-mail/v2"
 
 	"jaytaylor.com/html2text"
 )

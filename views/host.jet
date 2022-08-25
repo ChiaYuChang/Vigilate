@@ -14,7 +14,6 @@ Host
 
 {{block cardContent()}}
 {{prefMap := .PreferenceMap}}
-
 <div class="row">
     <div class="col">
         <ol class="breadcrumb mt-1">
@@ -26,9 +25,154 @@ Host
         <hr>
     </div>
 </div>
+
+<div class="row">
+    <div class="col">
+        <form action="/admin/host/{{host.ID}}" method="post" novalidate class="needs-novalidation" id="{{form_id}}">
+            <input type="hidden" name="action" id="action" value="1">
+            <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+
+            <ul class="nav nav-tabs" id="host-tabs">
+                <li class="nav-item">
+                    <a class="nav-link active" href="#host-content" data-target="" data-toggle="tab" id="host-tab"
+                        role="tab">Host</a>
+                </li>
+                {{if host.ID > 0}}
+                <li class="nav-item">
+                    <a class="nav-link" href="#service-content" data-target="" data-toggle="tab" id="service-tab"
+                        role="tab">Manage Services</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="#healthy-content" data-target="" data-toggle="tab" id="healthy-tab"
+                        role="tab">Healthy</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="#warning-content" data-target="" data-toggle="tab" id="warning-tab"
+                        role="tab">Warning</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="#problem-content" data-target="" data-toggle="tab" id="problem-tab"
+                        role="tab">Problems</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="#pending-content" data-target="" data-toggle="tab" id="pending-tab"
+                        role="tab">Pending</a>
+                </li>
+                {{end}}
+            </ul>
+
+            <div class="tab-content" id="host-tab-content" style="min-height: 55vh">
+                <div class="tab-pane fade show active" role="tabpanel" aria-labelledby="content-tab" id="host-content">
+                    <div class="row">
+                        <div class="col-md-6 col-xs-12">
+                            <div class="mb-3 mt-3">
+                                <label for="host_name" class="form-label">Host Name</label>
+                                <input type="text" class="form-control" name="host_name" id="host_name"
+                                    value="{{host.HostName}}" required>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="canonical_name" class="form-label">Canonical Name</label>
+                                <input type="text" class="form-control" name="canonical_name" id="canonical_name"
+                                    value="{{host.CanonicalName}}" required>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="url" class="form-label">URL</label>
+                                <input type="text" class="form-control" name="url" id="url" value="{{host.URL}}"
+                                    required>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="ip" class="form-label">IP Address (v4)</label>
+                                <input type="text" class="form-control" name="ip" id="ip" value="{{host.IP}}">
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="ipv6" class="form-label">IP Address (v6)</label>
+                                <input type="text" class="form-control" name="ipv6" id="ipv6" value="{{host.IPv6}}">
+                            </div>
+                        </div>
+                        <div class="col-md-6 col-xs-12">
+                            <div class="mb-3 mt-3">
+                                <label for="location" class="form-label">Location</label>
+                                <input type="text" class="form-control" name="location" id="location"
+                                    value="{{host.Location}}">
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="os" class="form-label">Operating System</label>
+                                <input type="text" class="form-control" name="os" id="os" value="{{host.OS}}">
+                            </div>
+                            <!-- <div class="mb-3">
+                                <label for="os" class="form-label">Operating System</label>
+                                <input type="text" class="form-control" name="location" id="location">
+                            </div> -->
+
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" value="1" {{if host.Active==1}}checked{{end}}
+                                    type="checkbox" id="active" name="active">
+                                <label class="form-check-label" for="flexSwitchCheckDefault">Active</label>
+                            </div>
+                        </div>
+                    </div>
+                    <hr>
+                    <div class="row">
+                        <div class="col">
+                            <div class="float-right">
+                                <div class="btn-group dropend">
+                                    <button type="button" class="btn btn-primary dropdown-toggle" data-toggle="dropdown"
+                                        aria-haspopup="true" aria-expanded="false">
+                                        Save
+                                    </button>
+                                    <div class="dropdown-menu">
+                                        <a class="dropdown-item" href="javascript:void(0);" onclick="saveClose()">Save
+                                            &amp;
+                                            Close</a>
+                                        <a class="dropdown-item" href="javascript:void(0);" onclick="val()">Save &amp;
+                                            Continue</a>
+                                    </div>
+                                </div>
+
+                                <a class="btn btn-info" href="/admin/host/all">Cancel</a>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+
+                {{if host.ID > 0}}
+                <div class="tab-pane fade" role="tabpanel" aria-labelledby="service-tab" id="service-content">
+                    Services content
+                </div>
+
+                <div class="tab-pane fade" role="tabpanel" aria-labelledby="healthy-tab" id="healthy-content">
+                    Healthy content
+                </div>
+
+                <div class="tab-pane fade" role="tabpanel" aria-labelledby="warning-tab" id="warning-content">
+                    Warning content
+                </div>
+
+                <div class="tab-pane fade" role="tabpanel" aria-labelledby="problem-tab" id="problem-content">
+                    Problem content
+                </div>
+
+                <div class="tab-pane fade" role="tabpanel" aria-labelledby="pending-tab" id="pending-content">
+                    Pending content
+                </div>
+                {{end}}
+            </div>
+        </form>
+    </div>
+</div>
+
 {{end}}
 
 
 {{ block js() }}
-
+<script>
+    saveClose = mylib.FormSaveClose("{{form_id}}", this);
+    val = mylib.FormValidation("{{form_id}}", this);
+</script>
 {{end}}
