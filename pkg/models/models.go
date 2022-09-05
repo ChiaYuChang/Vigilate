@@ -54,6 +54,7 @@ type Host struct {
 	Location      string
 	OS            string
 	Active        int
+	HostService   []HostService
 	TimeInfo
 }
 
@@ -68,18 +69,21 @@ type Services struct {
 type ServiceStatus int
 
 const (
-	ServiceStatusPending ServiceStatus = iota
-	ServiceStatusOK
+	ServiceStatusHealthy ServiceStatus = iota
+	ServiceStatusProblem
+	ServiceStatusPending
+	ServiceStatusWarning
 )
 
 type HostService struct {
 	ID             string
 	HostID         int
 	ServiceID      int
-	Activate       int
+	Active         int
 	ScheduleNumber int
-	ScheduleUnit   int
+	ScheduleUnit   string
 	Status         ServiceStatus
 	LastCheck      time.Time
+	Service        Services
 	TimeInfo
 }

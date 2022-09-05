@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
@@ -44,12 +45,25 @@ func NewPostgresqlHandlers(db *driver.DB, a *config.AppConfig) *DBRepo {
 // AdminDashboard displays the dashboard
 func (repo *DBRepo) AdminDashboard(w http.ResponseWriter, r *http.Request) {
 	vars := make(jet.VarMap)
-	vars.Set("no_healthy", 0)
-	vars.Set("no_problem", 0)
-	vars.Set("no_pending", 0)
-	vars.Set("no_warning", 0)
 
-	err := helpers.RenderPage(w, r, "dashboard", vars, nil)
+	serviceStateCount, err := repo.DB.GetAllServiceStatusCounts()
+	if err != nil {
+		log.Println(err)
+		return
+	}
+	vars.Set("no_healthy", serviceStateCount[models.ServiceStatusHealthy])
+	vars.Set("no_problem", serviceStateCount[models.ServiceStatusProblem])
+	vars.Set("no_pending", serviceStateCount[models.ServiceStatusPending])
+	vars.Set("no_warning", serviceStateCount[models.ServiceStatusWarning])
+
+	hosts, err := repo.DB.GetAllHost()
+	if err != nil {
+		log.Println(err)
+		return
+	}
+	vars.Set("hosts", hosts)
+
+	err = helpers.RenderPage(w, r, "dashboard", vars, nil)
 	if err != nil {
 		printTemplateError(w, err)
 	}
@@ -313,6 +327,37 @@ func (repo *DBRepo) DeleteUser(w http.ResponseWriter, r *http.Request) {
 	_ = repo.DB.DeleteUser(id)
 	repo.App.Session.Put(r.Context(), "flash", "User deleted")
 	http.Redirect(w, r, "/admin/users", http.StatusSeeOther)
+}
+
+type serviceJSON struct {
+	OK bool `json:"ok"`
+}
+
+//
+func (repo *DBRepo) ToggleServiceForHost(w http.ResponseWriter, r *http.Request) {
+	err := r.ParseForm()
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+
+	hostID, _ := strconv.Atoi(r.FormValue("host_id"))
+	serviceID, _ := strconv.Atoi(r.FormValue("service_id"))
+	active, _ := strconv.Atoi(r.FormValue("active"))
+
+	log.Printf("Host ID: %d Service ID: %d Active: %d", hostID, serviceID, active)
+	err = repo.DB.UpdateHostServiceStatusByID(hostID, serviceID, active)
+
+	var out []byte
+	if err != nil {
+		log.Println(err)
+		out, _ = json.MarshalIndent(serviceJSON{OK: false}, "", "    ")
+	} else {
+		out, _ = json.MarshalIndent(serviceJSON{OK: true}, "", "    ")
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(out)
 }
 
 // ClientError will display error page for client error i.e. bad request

@@ -51,7 +51,6 @@ Hosts
                     <td>{{.Location}}</td>
                     <td>
                         {{if .Active == 1}}
-
                         <span class="badge bg-success">Active</span>
                         {{else}}
                         <span class="badge bg-danger">Inactive</span>
