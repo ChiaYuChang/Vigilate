@@ -255,6 +255,76 @@ func (m *postgresDBRepo) UpdateHostServiceStatusByID(hostID, serviceID, active i
 	return nil
 }
 
+// func (m *postgresDBRepo) UpdateHostService(hs models.HostService, fieldName = []string) error {
+func (m *postgresDBRepo) UpdateHostService(hs models.HostService) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	// qry := `
+	// SELECT *
+	//   FROM public.host_services
+	//  WHERE host_id = $1
+	// `
+	// row := m.DB.QueryRowContext(ctx, qry, hs.ID)
+	// ohs := models.HostService{}
+
+	// mp := map[string]string{
+	// 	"ID": "int", "HostID": "int", "ServiceID": "int",
+	// 	"Active": "int", "ScheduleNumber": "int",
+	// 	"ScheduleUnit": "string", "LastCheck": "time",
+	// 	"CreatedAt": "time", "Status": "ServiceStatus"
+	// }
+
+	// err := row.Scan(
+	// 	&ohs.ID, &ohs.HostID, &ohs.ServiceID,
+	// 	&ohs.Active, &ohs.ScheduleNumber, &ohs.ScheduleUnit,
+	// 	&ohs.LastCheck, &ohs.CreatedAt, &ohs.Status,
+	// )
+	// if err != nil {
+	// 	return err
+	// }
+
+	// for _, f := range fieldName {
+	// 	switch mp[f] {
+	// 	case "string":
+	// 		nfv := reflect.ValueOf(&hs).FieldByName(f).Elem()
+	// 		reflect.ValueOf(&ohs).FieldByName(f).SetString(nfv)
+	// 	case "int":
+	// 		nfv := reflect.ValueOf(&hs).FieldByName(f).Elem()
+	// 		reflect.ValueOf(&ohs).FieldByName(f).SetInt(nfv)
+	// 	case "time":
+	// 		nfv := reflect.ValueOf(&hs).FieldByName(f).Elem()
+	// 		nfv.Convert(reflect.TypeOf(time.Time))
+	// 		reflect.ValueOf(&ohs).FieldByName(f).Set(nfv)
+	// 	case "ServiceStatus":
+
+	// 	}
+	// }
+
+	stmt := `
+	UPDATE public.host_services
+	   SET host_id = $1,
+		   service_id = $2,
+	       active = $3,
+		   schedule_number = $4,
+		   schedule_unit = $5,
+		   last_check = $6,
+		   status = $7,
+		   updated_at = $8
+     WHERE id = $9;
+	`
+	_, err := m.DB.ExecContext(ctx, stmt,
+		hs.HostID, hs.ServiceID, hs.Active, hs.ScheduleNumber, hs.ScheduleUnit,
+		hs.LastCheck, int(hs.Status), hs.UpdatedAt, hs.ID,
+	)
+
+	if err != nil {
+		log.Println(err)
+		return err
+	}
+	return nil
+}
+
 func (m *postgresDBRepo) GetServiceByStatus(status models.ServiceStatus) ([][3]string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
@@ -289,4 +359,79 @@ func (m *postgresDBRepo) GetServiceByStatus(status models.ServiceStatus) ([][3]s
 		hostServiceNamePair = append(hostServiceNamePair, pair)
 	}
 	return hostServiceNamePair, nil
+}
+
+func (m *postgresDBRepo) GetHostServiceByID(id int) (models.HostService, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	query := `
+	SELECT hs.id, hs.host_id, hs.service_id, hs.active, hs.schedule_number,
+	       hs.schedule_unit, hs.last_check, hs.status, hs.created_at, hs.updated_at,
+		   s.id, s.service_name, s.active, s.icon, s.created_at, s.updated_at
+	  FROM public.host_services AS hs
+	  LEFT JOIN public.services AS s
+	    ON (hs.service_id = s.id)
+	 WHERE hs.id = $1;
+	`
+
+	var hs models.HostService
+
+	row := m.DB.QueryRowContext(ctx, query, id)
+	err := row.Scan(
+		&hs.ID, &hs.HostID, &hs.ServiceID, &hs.Active, &hs.ScheduleNumber,
+		&hs.ScheduleUnit, &hs.LastCheck, &hs.Status, &hs.CreatedAt, &hs.UpdatedAt,
+		&hs.Service.ID, &hs.Service.ServiceName, &hs.Service.Active, &hs.Service.Icon,
+		&hs.Service.CreatedAt, &hs.Service.UpdatedAt,
+	)
+
+	if err != nil {
+		return hs, err
+	}
+
+	return hs, nil
+}
+
+func (m *postgresDBRepo) GetServivesToMonitor() ([]models.HostService, []string, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	qry := `
+	SELECT hs.id, hs.host_id, hs.service_id, hs.active, hs.schedule_number,
+	       hs.schedule_unit, hs.last_check, hs.status, hs.created_at, hs.updated_at,
+		   s.id, s.service_name, s.active, s.icon, s.created_at, s.updated_at, h.host_name
+	  FROM public.host_services AS hs
+	  LEFT JOIN public.services AS s
+	    ON (hs.service_id = s.id)
+	  LEFT JOIN public.hosts AS h
+	    ON (hs.host_id = h.id)
+	 WHERE h.active = 1 AND hs.active = 1;`
+
+	rows, err := m.DB.QueryContext(ctx, qry)
+	if err != nil {
+		log.Println(err)
+	}
+	defer rows.Close()
+
+	service := make([]models.HostService, 0)
+	hostName := make([]string, 0)
+	for rows.Next() {
+		var hn string
+		var hs models.HostService
+		err := rows.Scan(
+			&hs.ID, &hs.HostID, &hs.ServiceID, &hs.Active, &hs.ScheduleNumber,
+			&hs.ScheduleUnit, &hs.LastCheck, &hs.Status, &hs.CreatedAt,
+			&hs.UpdatedAt, &hs.ServiceID, &hs.Service.ServiceName,
+			&hs.Service.Active, &hs.Service.Icon, &hs.Service.CreatedAt,
+			&hs.Service.UpdatedAt, &hn,
+		)
+
+		if err != nil {
+			log.Println(err)
+			return service, hostName, err
+		}
+		service = append(service, hs)
+		hostName = append(hostName, hn)
+	}
+	return service, hostName, nil
 }

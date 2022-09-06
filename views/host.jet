@@ -2,7 +2,9 @@
 
 {{block css()}}
 <style>
-
+    .pointer {
+        cursor: pointer;
+    }
 </style>
 {{end}}
 
@@ -199,8 +201,14 @@ Host
                                             <span>{{.Service.Icon}}</span>
                                             {{.Service.ServiceName}}
                                         </td>
-                                        <td>{{.LastCheck}}</td>
-                                        <td>{{.Service.UpdatedAt}}</td>
+                                        <td>
+                                            {{if dateAfterYearOne(.LastCheck)}}
+                                            {{dateFromLayout(.LastCheck, "2006-01-02 15:04")}}
+                                            {{else}}
+                                            Healthy
+                                            {{end}}
+                                        </td>
+                                        <td></td>
                                     </tr>
                                     {{end}}
                                     {{end}}
@@ -229,12 +237,19 @@ Host
                                         <td>
                                             <span>{{.Service.Icon}}</span>
                                             {{.Service.ServiceName}}
-                                            <span class="badge bg-secondary" onclick="checkNow({{.ID}})">
+                                            <span class="badge bg-secondary pointer"
+                                                onclick="checkNow({{.ID}}, 'warning')">
                                                 Click Now
                                             </span>
                                         </td>
-                                        <td>{{.LastCheck}}</td>
-                                        <td>{{.Service.UpdatedAt}}</td>
+                                        <td>
+                                            {{if dateAfterYearOne(.LastCheck)}}
+                                            {{dateFromLayout(.LastCheck, "2006-01-02 15:04")}}
+                                            {{else}}
+                                            Warning
+                                            {{end}}
+                                        </td>
+                                        <td></td>
                                     </tr>
                                     {{end}}
                                     {{end}}
@@ -263,12 +278,19 @@ Host
                                         <td>
                                             <span>{{.Service.Icon}}</span>
                                             {{.Service.ServiceName}}
-                                            <span class="badge bg-secondary" onclick="checkNow({{.ID}})">
+                                            <span class="badge bg-secondary pointer"
+                                                onclick="checkNow({{.ID}}, 'problem')">
                                                 Click Now
                                             </span>
                                         </td>
-                                        <td>{{.LastCheck}}</td>
-                                        <td>{{.Service.UpdatedAt}}</td>
+                                        <td>
+                                            {{if dateAfterYearOne(.LastCheck)}}
+                                            {{dateFromLayout(.LastCheck, "2006-01-02 15:04")}}
+                                            {{else}}
+                                            Problem
+                                            {{end}}
+                                        </td>
+                                        <td></td>
                                     </tr>
                                     {{end}}
                                     {{end}}
@@ -297,7 +319,8 @@ Host
                                         <td>
                                             <span>{{.Service.Icon}}</span>
                                             {{.Service.ServiceName}}
-                                            <span class="badge bg-secondary" onclick="checkNow({{.ID}})">
+                                            <span class="badge bg-secondary pointer"
+                                                onclick="checkNow({{.ID}}, 'pending')">
                                                 Click Now
                                             </span>
                                         </td>
@@ -364,8 +387,32 @@ Host
         }
     })
 
-    function checkNow(id) {
+    function checkNow(id, oldStatus) {
         console.log("Clicked check now")
+        fetch('/admin/perform-check/' + id + '/' + oldStatus)
+            .then(response => response.json())
+            .then(data => {
+                console.log("OK: ", data.ok, "Message: ", data.message)
+                if (data.ok) {
+                    if (data.old_status !== data.new_status) {
+                        mylib.Prompt().toast({
+                            msg: data.message,
+                            icon: "info",
+                            timer: 60000,
+                            showCloseButton: true,
+                        })
+                    } else {
+                        mylib.Prompt().toast({
+                            msg: "Service is still in " + data.old_status + " state",
+                            icon: "info",
+                            timer: 5000,
+                            showCloseButton: true,
+                        })
+                    }
+                } else {
+                    mylib.errorAlert("Internal server error");
+                }
+            })
     }
 </script>
 {{end}}

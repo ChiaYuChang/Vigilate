@@ -27,6 +27,9 @@ type DatabaseRepo interface {
 	GetHostByID(id int) (models.Host, error)
 	UpdateHost(h models.Host) error
 	UpdateHostServiceStatusByID(hostId, serviceId, active int) error
+	UpdateHostService(hs models.HostService) error
 	GetAllServiceStatusCounts() (map[models.ServiceStatus]int, error)
 	GetServiceByStatus(status models.ServiceStatus) ([][3]string, error)
+	GetHostServiceByID(id int) (models.HostService, error)
+	GetServivesToMonitor() ([]models.HostService, []string, error)
 }

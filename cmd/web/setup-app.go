@@ -11,6 +11,7 @@ import (
 	"github.com/alexedwards/scs/postgresstore"
 	"github.com/alexedwards/scs/v2"
 	"github.com/pusher/pusher-http-go/v5"
+	"github.com/robfig/cron/v3"
 	"gitlab.com/gjerry134679/vigilate/pkg/channeldata"
 	"gitlab.com/gjerry134679/vigilate/pkg/config"
 	"gitlab.com/gjerry134679/vigilate/pkg/driver"
@@ -138,6 +139,15 @@ func setupApp() (*string, error) {
 	log.Println("Secure", *pusherSecure)
 
 	app.WsClient = wsClient
+
+	localZone, _ := time.LoadLocation("Local")
+	app.Scheduler = cron.New(
+		cron.WithLocation(localZone),
+		cron.WithChain(
+			cron.DelayIfStillRunning(cron.DefaultLogger),
+			cron.Recover(cron.DefaultLogger)))
+
+	startMonitoring()
 
 	helpers.NewHelpers(&app)
 

@@ -9,7 +9,7 @@ import (
 	"strconv"
 
 	"github.com/CloudyKit/jet/v6"
-	"github.com/go-chi/chi"
+	"github.com/go-chi/chi/v5"
 	"gitlab.com/gjerry134679/vigilate/pkg/config"
 	"gitlab.com/gjerry134679/vigilate/pkg/driver"
 	"gitlab.com/gjerry134679/vigilate/pkg/helpers"
