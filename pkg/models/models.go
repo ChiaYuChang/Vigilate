@@ -73,10 +73,43 @@ const (
 	ServiceStatusProblem
 	ServiceStatusPending
 	ServiceStatusWarning
+	ServiceStatusUnknown
 )
 
+func (ss ServiceStatus) String() string {
+	var s string = "unknown"
+	switch ss {
+	case ServiceStatusHealthy:
+		s = "healthy"
+	case ServiceStatusProblem:
+		s = "problem"
+	case ServiceStatusPending:
+		s = "pending"
+	case ServiceStatusWarning:
+		s = "warning"
+	}
+	return s
+}
+
+func NewServiceStatus(s string) ServiceStatus {
+	var state ServiceStatus
+	switch s {
+	case ServiceStatusHealthy.String():
+		state = ServiceStatusHealthy
+	case ServiceStatusProblem.String():
+		state = ServiceStatusProblem
+	case ServiceStatusPending.String():
+		state = ServiceStatusPending
+	case ServiceStatusWarning.String():
+		state = ServiceStatusWarning
+	default:
+		state = ServiceStatusUnknown
+	}
+	return state
+}
+
 type HostService struct {
-	ID             string
+	ID             int
 	HostID         int
 	ServiceID      int
 	Active         int
