@@ -117,9 +117,15 @@
                 <div class="navbar-collapse collapse">
                     <form class="form-inline ml-auto mr-0 mr-md-3 my-2 my-md-0">
                         <div class="form-check form-switch">
+                            {{if .PreferenceMap["monitoring_live"] == "1"}}
+                            <input class="form-check-input" type="checkbox" checked id="monitoring-live">
+                            <label id="monitoring-live-label" class="form-check-label"
+                                for="monitoring-live">Monitoring</label>
+                            {{else}}
                             <input class="form-check-input" type="checkbox" id="monitoring-live">
                             <label id="monitoring-live-label" class="form-check-label"
                                 for="monitoring-live">Monitoring</label>
+                            {{end}}
                         </div>
                     </form>
                 </div>
@@ -169,7 +175,6 @@
     <!-- <script src="https://cdn.jsdelivr.net/npm/notie@4.3.1/dist/notie.min.js"></script> -->
     <!-- <script src="/static/admin/js/attention.js"></script> -->
     <script src="/static/admin/js/app.js"></script>
-
     <!-- application specific js -->
     {{include "./../partials/js.jet"}}
 

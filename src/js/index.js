@@ -1,6 +1,7 @@
 import Pusher from "pusher-js";
 import { successAlert, errorAlert, warningAlert, Prompt } from "./attention";
 import { FormValidation, FormSaveClose } from "./form_check";
+import { monitoring } from "./monitoring_live";
 
 let pusher = new Pusher(process.env.PUSHER_KEY, {
   authEndPoint: "/pusher/auth",
@@ -13,16 +14,14 @@ let pusher = new Pusher(process.env.PUSHER_KEY, {
 
 let publicChannel = pusher.subscribe("public-channel");
 
-publicChannel.bind("test-event", (data) => {
+publicChannel.bind("app-starting", (data) => {
   successAlert(data.message);
 });
 
-// window.successAlert = successAlert;
-// window.errorAlert = errorAlert;
-// window.warningAlert = warningAlert;
-// window.Prompt = Prompt;
-// window.FormValidation = FormValidation;
-// window.FormSaveClose = FormSaveClose;
+publicChannel.bind("app-ending", (data) => {
+  warningAlert(data.message);
+});
+
 export {
   pusher,
   publicChannel,
@@ -32,4 +31,5 @@ export {
   errorAlert,
   warningAlert,
   Prompt,
+  monitoring,
 };

@@ -41,24 +41,35 @@ func (m *postgresDBRepo) AllPreferences() ([]models.Preference, error) {
 }
 
 // SetSystemPref updates a system preference setting
-func (m *postgresDBRepo) SetSystemPref(name, value string) error {
+func (m *postgresDBRepo) SetSystemPref(name models.SystemPreference, value string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	stmt := `delete from preferences where name = $1`
-	_, _ = m.DB.ExecContext(ctx, stmt, name)
+	stmt := `
+	UPDATE public.preferences
+	   SET preference = $1,
+	       updated_at = $2
+     WHERE id = $3;
+	`
 
-	query := `
-		INSERT INTO preferences (
-			  	name, preference, created_at, updated_at
-			  ) VALUES ($1, $2, $3, $4)`
-
-	_, err := m.DB.ExecContext(ctx, query, name, value, time.Now(), time.Now())
+	_, err := m.DB.ExecContext(ctx, stmt, value, time.Now(), int(name))
 	if err != nil {
 		log.Println(err)
 		return err
 	}
+	// stmt := `delete from preferences where name = $1`
+	// _, _ = m.DB.ExecContext(ctx, stmt, name.String())
 
+	// query := `
+	// 	INSERT INTO preferences (
+	// 		  	name, preference, created_at, updated_at
+	// 		  ) VALUES ($1, $2, $3, $4)`
+
+	// _, err := m.DB.ExecContext(ctx, query, name, value, time.Now(), time.Now())
+	// if err != nil {
+	// 	log.Println(err)
+	// 	return err
+	// }
 	return nil
 }
 
