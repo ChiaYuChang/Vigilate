@@ -360,6 +360,61 @@ func (repo *DBRepo) ToggleServiceForHost(w http.ResponseWriter, r *http.Request)
 	w.Write(out)
 }
 
+func (repo *DBRepo) SetSystemPref(w http.ResponseWriter, r *http.Request) {
+	prefName := models.ParseSystemPreference(r.PostForm.Get("pref_name"))
+	prefValue := r.PostForm.Get("pref_value")
+
+	resp := jsonResp{OK: true, Message: ""}
+
+	err := repo.DB.SetSystemPref(prefName, prefValue)
+	if err != nil {
+		resp.OK = false
+		resp.Message = err.Error()
+	}
+
+	// log.Printf("Change %s from %s to %s\n", prefName.String(), repo.App.PreferenceMap[prefName.String()], prefValue)
+	repo.App.PreferenceMap[prefName.String()] = prefValue
+
+	out, _ := json.MarshalIndent(resp, "", "    ")
+
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(out)
+}
+
+// turns monitoring on and off
+func (repo *DBRepo) ToggleMonitoring(w http.ResponseWriter, r *http.Request) {
+	enabled := r.PostForm.Get("enabled")
+	// log.Println("enabled:", enabled)
+
+	resp := jsonResp{OK: true, Message: ""}
+
+	switch enabled {
+	case "1":
+		log.Println("Turning monitoring on")
+		repo.App.PreferenceMap[models.MonitoringLive.String()] = enabled
+		repo.StartMonitoring()
+		repo.App.Scheduler.Start()
+	case "0":
+		log.Println("Turning monitoring off")
+		repo.App.PreferenceMap[models.MonitoringLive.String()] = enabled
+		repo.StopMonitoring()
+		repo.App.Scheduler.Stop()
+	default:
+		log.Println("unknown enable value", enabled)
+		resp.OK = false
+		resp.Message = fmt.Sprintf("unknown enable value: %q", enabled)
+	}
+	// if err != nil {
+	// 	resp.OK = false
+	// 	resp.Message = err.Error()
+	// }
+
+	out, _ := json.MarshalIndent(resp, "", "    ")
+
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(out)
+}
+
 // ClientError will display error page for client error i.e. bad request
 func ClientError(w http.ResponseWriter, r *http.Request, status int) {
 	switch status {

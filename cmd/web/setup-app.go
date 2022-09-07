@@ -146,8 +146,9 @@ func setupApp() (*string, error) {
 		cron.WithChain(
 			cron.DelayIfStillRunning(cron.DefaultLogger),
 			cron.Recover(cron.DefaultLogger)))
-
-	startMonitoring()
+	app.MonitorMap = make(map[int]cron.EntryID)
+	app.Scheduler.Start()
+	go handlers.Repo.StartMonitoring()
 
 	helpers.NewHelpers(&app)
 

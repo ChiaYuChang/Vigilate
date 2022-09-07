@@ -120,3 +120,42 @@ type HostService struct {
 	Service        Services
 	TimeInfo
 }
+
+type SystemPreference int
+
+const (
+	MonitoringLive SystemPreference = iota + 1
+	CheckIntervalAmount
+	CheckIntervalUnit
+	NotifyViaEmail
+)
+
+func (ss SystemPreference) String() string {
+	var s string = "unknown"
+	switch ss {
+	case CheckIntervalAmount:
+		s = "check_interval_amount"
+	case CheckIntervalUnit:
+		s = "check_interval_unit"
+	case NotifyViaEmail:
+		s = "notify_via_email"
+	case MonitoringLive:
+		s = "monitoring_live"
+	}
+	return s
+}
+
+func ParseSystemPreference(s string) SystemPreference {
+	var state SystemPreference
+	switch s {
+	case CheckIntervalAmount.String():
+		state = CheckIntervalAmount
+	case CheckIntervalUnit.String():
+		state = CheckIntervalUnit
+	case NotifyViaEmail.String():
+		state = NotifyViaEmail
+	case MonitoringLive.String():
+		state = MonitoringLive
+	}
+	return state
+}

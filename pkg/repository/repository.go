@@ -6,7 +6,8 @@ import "gitlab.com/gjerry134679/vigilate/pkg/models"
 type DatabaseRepo interface {
 	// preferences
 	AllPreferences() ([]models.Preference, error)
-	SetSystemPref(name, value string) error
+	// SetSystemPref(name, value string) error
+	SetSystemPref(name models.SystemPreference, value string) error
 	InsertOrUpdateSitePreferences(pm map[string]string) error
 
 	// users and authentication
