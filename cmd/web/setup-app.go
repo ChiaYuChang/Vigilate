@@ -147,7 +147,10 @@ func setupApp() (*string, error) {
 			cron.DelayIfStillRunning(cron.DefaultLogger),
 			cron.Recover(cron.DefaultLogger)))
 	app.MonitorMap = make(map[int]cron.EntryID)
-	app.Scheduler.Start()
+
+	if app.PreferenceMap["monitoring_live"] == "1" {
+		app.Scheduler.Start()
+	}
 	go handlers.Repo.StartMonitoring()
 
 	helpers.NewHelpers(&app)

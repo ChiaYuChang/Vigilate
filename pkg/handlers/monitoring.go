@@ -66,6 +66,9 @@ func (repo *DBRepo) StartMonitoring() {
 			// format schedule string
 			var sch string
 			switch s.ScheduleUnit {
+			case "s":
+				// should not be used in production
+				sch = fmt.Sprintf("@every %ds", s.ScheduleNumber)
 			case "d":
 				sch = fmt.Sprintf("@every %dh", s.ScheduleNumber*24)
 			case "h":
