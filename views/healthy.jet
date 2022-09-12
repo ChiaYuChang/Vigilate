@@ -25,7 +25,7 @@ Healthy Services
 <div class="row">
     <div class="col">
 
-        <table class="table table-condensed table-striped">
+        <table id="overview-healthy-srv" class="table table-condensed table-striped">
             <thead>
                 <tr>
                     <th>Host</th>
@@ -37,17 +37,17 @@ Healthy Services
             <tbody>
                 {{if len(services) > 0}}
                 {{range services}}
-                <tr>
+                <tr id="overview-hs-{{.[0]}}">
                     <td>
-                        <a href="/admin/host/{{.[0]}}#healthy-content">{{.[1]}}</a>
+                        <a href="/admin/host/{{.[1]}}#healthy-content">{{.[2]}}</a>
                     </td>
-                    <td>{{.[2]}}</td>
+                    <td>{{.[4]}}</td>
                     <td><span class="badge bg-success">Healthy</span></td>
                     <td>""</td>
                 </tr>
                 {{end}}
                 {{else}}
-                <tr>
+                <tr id="no-services">
                     <td colspan="5">No services</td>
                 </tr>
                 {{end}}

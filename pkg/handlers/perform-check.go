@@ -13,6 +13,8 @@ import (
 	"gitlab.com/gjerry134679/vigilate/pkg/models"
 )
 
+var YearOne time.Time = time.Date(0001, 1, 1, 0, 0, 0, 1, time.UTC)
+
 type Service int
 
 const (
@@ -291,15 +293,37 @@ func (repo *DBRepo) testServiceForHost(h models.Host, hs models.HostService) (mo
 		data["icon"] = hs.Service.Icon
 		data["host_service_id"] = strconv.Itoa(hs.ID)
 		data["status"] = newServiceStatus.String()
+		data["old_status"] = hs.Status.String()
 
 		data["message"] = fmt.Sprintf(
 			"%s on %s reports %s",
 			hs.Service.ServiceName, h.HostName, newServiceStatus.String(),
 		)
 
-		data["last_check"] = t.Format("2006-01-02 3:04:06 PM")
+		data["last_check"] = t.Format("2006-01-02 03:04:05 PM")
 		repo.broadcastMessage("public-channel", "host-service-status-change", data)
 	}
+
+	// Broadcast schedule-change-event
+	data := make(map[string]string)
+	data["host_service_id"] = strconv.Itoa(hs.ID)
+	data["host_id"] = strconv.Itoa(hs.HostID)
+	data["host_name"] = h.HostName
+	data["service_id"] = strconv.Itoa(hs.ServiceID)
+	data["service_name"] = hs.Service.ServiceName
+	data["schedule"], _ = repo.FormScheduleString(hs.ScheduleUnit, hs.ScheduleNumber)
+	if app.Scheduler.Entry(repo.App.MonitorMap[hs.ID]).Next.After(YearOne) {
+		data["next_run"] = app.Scheduler.
+			Entry(repo.App.MonitorMap[hs.ID]).
+			Next.
+			Format("2006-01-02 03:04:05 PM")
+	} else {
+		data["next_run"] = "Pending"
+	}
+	data["last_run"] = t.Format("2006-01-02 03:04:05 PM")
+	data["status"] = newServiceStatus.String()
+	data["icon"] = hs.Service.Icon
+	repo.broadcastMessage("public-channel", "schedule-changed-event", data)
 
 	// TODO - send email if necessary
 

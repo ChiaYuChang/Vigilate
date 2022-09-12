@@ -325,12 +325,12 @@ func (m *postgresDBRepo) UpdateHostService(hs models.HostService) error {
 	return nil
 }
 
-func (m *postgresDBRepo) GetServiceByStatus(status models.ServiceStatus) ([][3]string, error) {
+func (m *postgresDBRepo) GetServiceByStatus(status models.ServiceStatus) ([][5]string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
 	qry := `
-	SELECT h.id, h.host_name, s.service_name
+	SELECT hs.id, h.id, h.host_name, s.id, s.service_name
       FROM host_services as hs
       LEFT JOIN services as s
         ON hs.service_id = s.id
@@ -339,7 +339,7 @@ func (m *postgresDBRepo) GetServiceByStatus(status models.ServiceStatus) ([][3]s
      WHERE hs.status = $1 AND hs.active = 1
 	 ORDER By h.host_name, s.service_name;`
 
-	hostServiceNamePair := make([][3]string, 0)
+	hostServiceNamePair := make([][5]string, 0)
 	rows, err := m.DB.QueryContext(ctx, qry, int(status))
 	if err != nil {
 		fmt.Println(err)
@@ -348,10 +348,13 @@ func (m *postgresDBRepo) GetServiceByStatus(status models.ServiceStatus) ([][3]s
 	defer rows.Close()
 
 	for rows.Next() {
-		var pair = [3]string{}
-		var i int
-		err = rows.Scan(&i, &pair[1], &pair[2])
-		pair[0] = strconv.Itoa(i)
+		var pair = [5]string{}
+		var hsID, hID, sID int
+		err = rows.Scan(&hsID, &hID, &pair[2], &sID, &pair[4])
+		pair[0] = strconv.Itoa(hsID)
+		pair[1] = strconv.Itoa(hID)
+		pair[3] = strconv.Itoa(sID)
+
 		if err != nil {
 			log.Println(err)
 			return hostServiceNamePair, err

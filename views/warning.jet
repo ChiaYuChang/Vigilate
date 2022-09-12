@@ -25,7 +25,7 @@ Warning Services
 <div class="row">
     <div class="col">
 
-        <table class="table table-condensed table-striped">
+        <table id="overview-warning-srv" class="table table-condensed table-striped">
             <thead>
                 <tr>
                     <th>Host</th>
@@ -37,15 +37,15 @@ Warning Services
             <tbody>
                 {{if len(services) > 0}}
                 {{range services}}
-                <tr>
-                    <td><a href="/admin/host/{{.[0]}}#warning-content">{{.[1]}}</a></td>
-                    <td>{{.[2]}}</td>
+                <tr id="overview-hs-{{.[0]}}">
+                    <td><a href="/admin/host/{{.[1]}}#warning-content">{{.[2]}}</a></td>
+                    <td>{{.[4]}}</td>
                     <td><span class="badge bg-warning text-dark">Warning</span></td>
                     <td>""</td>
                 </tr>
                 {{end}}
                 {{else}}
-                <tr>
+                <tr id="no-services">
                     <td colspan="5">No services</td>
                 </tr>
                 {{end}}

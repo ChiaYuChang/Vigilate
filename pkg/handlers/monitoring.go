@@ -38,6 +38,32 @@ func (repo *DBRepo) StopMonitoring() {
 	}
 }
 
+func (repo *DBRepo) FormScheduleString(unit string, number int) (string, error) {
+	// format schedule string
+	var sch string
+	switch unit {
+	case "s":
+		// should not be used in production
+		sch = fmt.Sprintf("@every %ds", number)
+	case "d":
+		sch = fmt.Sprintf("@every %dh", number*24)
+	case "h":
+		sch = fmt.Sprintf("@every %dh", number)
+	case "m":
+		hr := number / 60
+		mn := number % 60
+		if hr < 1 {
+			sch = fmt.Sprintf("@every %dm", mn)
+		} else {
+			sch = fmt.Sprintf("@every %dh%dm", hr, mn)
+		}
+	default:
+		// log.Println("unknown time unit:", unit)
+		return sch, fmt.Errorf("unknown time unit %v", unit)
+	}
+	return sch, nil
+}
+
 func (repo *DBRepo) StartMonitoring() {
 	log.Println("====== Start Monitoring Servicse !! ======")
 	if app.PreferenceMap["monitoring_live"] == "1" {
@@ -63,29 +89,11 @@ func (repo *DBRepo) StartMonitoring() {
 			s := servicesToMonitor[i]
 			log.Printf("|  - Services Name: %s            |\n", hn)
 
-			// format schedule string
-			var sch string
-			switch s.ScheduleUnit {
-			case "s":
-				// should not be used in production
-				sch = fmt.Sprintf("@every %ds", s.ScheduleNumber)
-			case "d":
-				sch = fmt.Sprintf("@every %dh", s.ScheduleNumber*24)
-			case "h":
-				sch = fmt.Sprintf("@every %dh", s.ScheduleNumber)
-			case "m":
-				hr := s.ScheduleNumber / 60
-				mn := s.ScheduleNumber % 60
-				if hr < 1 {
-					sch = fmt.Sprintf("@every %dm", mn)
-				} else {
-					sch = fmt.Sprintf("@every %dh%dm", hr, mn)
-				}
-			default:
-				log.Println("unknown time unit:", s.ScheduleUnit)
+			sch, err := repo.FormScheduleString(s.ScheduleUnit, s.ScheduleNumber)
+			if err != nil {
+				log.Println(err)
 				continue
 			}
-
 			// create a job
 			j := job{HostServiceID: s.ID}
 			scheduleID, err := app.Scheduler.AddJob(sch, j)
