@@ -11,6 +11,7 @@ import (
 
 	"github.com/CloudyKit/jet/v6"
 	"github.com/go-chi/chi/v5"
+	"gitlab.com/gjerry134679/vigilate/pkg/checker"
 	"gitlab.com/gjerry134679/vigilate/pkg/config"
 	"gitlab.com/gjerry134679/vigilate/pkg/driver"
 	"gitlab.com/gjerry134679/vigilate/pkg/helpers"
@@ -22,26 +23,28 @@ import (
 //Repo is the repository
 var Repo *DBRepo
 var app *config.AppConfig
-
-// var serverChecker checker.ServerChecker
+var serverChecker *checker.ServerChecker
 
 // DBRepo is the db repo
 type DBRepo struct {
-	App *config.AppConfig
-	DB  repository.DatabaseRepo
+	App     *config.AppConfig
+	DB      repository.DatabaseRepo
+	Checker *checker.ServerChecker
 }
 
 // NewHandlers creates the handlers
-func NewHandlers(repo *DBRepo, a *config.AppConfig) {
+func NewHandlers(repo *DBRepo, a *config.AppConfig, c *checker.ServerChecker) {
 	Repo = repo
 	app = a
+	serverChecker = c
 }
 
 // NewPostgresqlHandlers creates db repo for postgres
-func NewPostgresqlHandlers(db *driver.DB, a *config.AppConfig) *DBRepo {
+func NewPostgresqlHandlers(db *driver.DB, a *config.AppConfig, c *checker.ServerChecker) *DBRepo {
 	return &DBRepo{
-		App: a,
-		DB:  dbrepo.NewPostgresRepo(db.SQL, a),
+		App:     a,
+		DB:      dbrepo.NewPostgresRepo(db.SQL, a),
+		Checker: c,
 	}
 }
 

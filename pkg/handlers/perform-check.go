@@ -6,51 +6,51 @@ import (
 	"log"
 	"net/http"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/go-chi/chi/v5"
+	"gitlab.com/gjerry134679/vigilate/pkg/checker"
 	"gitlab.com/gjerry134679/vigilate/pkg/models"
 )
 
 var YearOne time.Time = time.Date(0001, 1, 1, 0, 0, 0, 1, time.UTC)
 
-type Service int
+// type Service int
 
-const (
-	ServiceHTTP Service = iota
-	ServiceHTTPS
-	ServiceSSLCertificate
-	ServiceUnknown
-)
+// const (
+// 	ServiceHTTP Service = iota
+// 	ServiceHTTPS
+// 	ServiceSSLCertificate
+// 	ServiceUnknown
+// )
 
-func (s Service) String() string {
-	switch s {
-	case ServiceHTTP:
-		return "HTTP"
-	case ServiceHTTPS:
-		return "HTTPS"
-	case ServiceSSLCertificate:
-		return "SSLCertificate"
-	default:
-		return "Unknown Service"
-	}
-}
+// func (s Service) String() string {
+// 	switch s {
+// 	case ServiceHTTP:
+// 		return "HTTP"
+// 	case ServiceHTTPS:
+// 		return "HTTPS"
+// 	case ServiceSSLCertificate:
+// 		return "SSLCertificate"
+// 	default:
+// 		return "Unknown Service"
+// 	}
+// }
 
-func ParseService(s string) Service {
-	var service Service
-	switch s {
-	case ServiceHTTP.String():
-		service = ServiceHTTP
-	case ServiceHTTPS.String():
-		service = ServiceHTTPS
-	case ServiceSSLCertificate.String():
-		service = ServiceSSLCertificate
-	default:
-		service = ServiceUnknown
-	}
-	return service
-}
+// func ParseService(s string) Service {
+// 	var service Service
+// 	switch s {
+// 	case ServiceHTTP.String():
+// 		service = ServiceHTTP
+// 	case ServiceHTTPS.String():
+// 		service = ServiceHTTPS
+// 	case ServiceSSLCertificate.String():
+// 		service = ServiceSSLCertificate
+// 	default:
+// 		service = ServiceUnknown
+// 	}
+// 	return service
+// }
 
 type jsonResp struct {
 	OK            bool      `json:"ok"`
@@ -78,22 +78,24 @@ func (repo *DBRepo) ScheduleCheck(HostServiceId int) {
 		return
 	}
 
-	s := ParseService(hs.Service.ServiceName)
+	s := checker.ParseService(hs.Service.ServiceName)
 	log.Println("Host:", h.URL)
 	log.Println("Service name is", s.String())
 
-	var newServiceStatus models.ServiceStatus
-	var message string
-	var updateTime time.Time
+	// var newServiceStatus models.ServiceStatus
+	// var message string
+	// var updateTime time.Time
 
-	switch s {
-	case ServiceHTTP:
-		newServiceStatus, message, updateTime = testHTTPForHost(h.URL)
-		// newServiceStatus, message, updateTime = repo.testServiceForHost(h, hs)
-	default:
-		log.Println("Currently not support.")
-		return
-	}
+	newServiceStatus, message, updateTime := repo.Checker.CheckerSelector(h.URL, s, nil)
+	// switch s {
+	// case checker.ServiceHTTP:
+	// 	newServiceStatus, message, updateTime = testHTTPForHost(h.URL)
+
+	// 	// newServiceStatus, message, updateTime = repo.testServiceForHost(h, hs)
+	// default:
+	// 	log.Println("Currently not support.")
+	// 	return
+	// }
 	log.Printf("New Status: %s; Message: %s", newServiceStatus, message)
 
 	// update host service record in db with status and update the last check time
@@ -113,6 +115,10 @@ func (repo *DBRepo) ScheduleCheck(HostServiceId int) {
 
 	// broadcast the update info
 	if serviceStatusHasChange {
+		repo.pushServerStatusChangeEvent(hs.ID, hs.HostID, h.HostName, hs.ServiceID, hs.Service.ServiceName,
+			hs.Service.Icon, hs.ScheduleUnit, hs.ScheduleNumber, updateTime, hs.Status, newServiceStatus)
+		repo.pushScheduleChangeEvent(hs.ID, hs.HostID, h.HostName, hs.ServiceID, hs.Service.ServiceName,
+			hs.Service.Icon, hs.ScheduleUnit, hs.ScheduleNumber, updateTime, newServiceStatus)
 		repo.broadcastMessage(
 			"public-channel",
 			"host-service-count-change",
@@ -166,10 +172,14 @@ func (repo *DBRepo) TestCheck(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// test the service
-	newServiceStatus, msg, checkedTime := repo.testServiceForHost(h, hs)
+	// newServiceStatus, msg, checkedTime := repo.testServiceForHost(h, hs)
+	newServiceStatus, msg, checkedTime := repo.Checker.
+		CheckerSelector(h.URL, checker.ParseService(hs.Service.ServiceName), nil)
 
 	// Broadcast service change event
 	if hs.Status != newServiceStatus {
+		repo.pushServerStatusChangeEvent(hs.ID, hs.HostID, h.HostName, hs.ServiceID, hs.Service.ServiceName,
+			hs.Service.Icon, hs.ScheduleUnit, hs.ScheduleNumber, checkedTime, hs.Status, newServiceStatus)
 		repo.pushScheduleChangeEvent(hs.ID, hs.HostID, h.HostName, hs.ServiceID, hs.Service.ServiceName,
 			hs.Service.Icon, hs.ScheduleUnit, hs.ScheduleNumber, checkedTime, newServiceStatus)
 		repo.broadcastMessage(
@@ -213,37 +223,39 @@ func (repo *DBRepo) TestCheck(w http.ResponseWriter, r *http.Request) {
 	w.Write(out)
 }
 
-func (repo *DBRepo) testServiceForHost(h models.Host, hs models.HostService) (models.ServiceStatus, string, time.Time) {
-	var newServiceStatus models.ServiceStatus
-	var msg string
-	var t time.Time
+// func (repo *DBRepo) testServiceForHost(h models.Host, hs models.HostService) (models.ServiceStatus, string, time.Time) {
+// 	// var newServiceStatus models.ServiceStatus
+// 	// var msg string
+// 	// var t time.Time
 
-	log.Printf("Start testing %s on %s", hs.Service.ServiceName, h.URL)
-	switch ParseService(hs.Service.ServiceName) {
-	case ServiceHTTP:
-		newServiceStatus, msg, t = testHTTPForHost(h.URL)
-	}
-	log.Printf("Old status: %s; New status: %s", hs.Status, newServiceStatus)
+// 	log.Printf("Start testing %s on %s", hs.Service.ServiceName, h.URL)
+// 	newServiceStatus, msg, checkedTime := repo.Checker.
+// 		CheckerSelector(h.URL, checker.ParseService(hs.Service.ServiceName), nil)
+// 	// switch checker.ParseService(hs.Service.ServiceName) {
+// 	// case checker.ServiceHTTP:
+// 	// 	newServiceStatus, msg, t = testHTTPForHost(h.URL)
+// 	// }
+// 	log.Printf("Old status: %s; New status: %s", hs.Status, newServiceStatus)
 
-	// broadcast to all clients
-	if hs.Status != newServiceStatus {
-		repo.pushServerStatusChangeEvent(hs.ID, hs.HostID, h.HostName, hs.ServiceID, hs.Service.ServiceName,
-			hs.Service.Icon, hs.ScheduleUnit, hs.ScheduleNumber, t, hs.Status, newServiceStatus)
-		repo.broadcastMessage(
-			"public-channel",
-			"host-service-count-change",
-			repo.updateHostServiceCount("from testServiceForHost function"),
-		)
-	}
+// 	// broadcast to all clients
+// 	if hs.Status != newServiceStatus {
+// 		repo.pushServerStatusChangeEvent(hs.ID, hs.HostID, h.HostName, hs.ServiceID, hs.Service.ServiceName,
+// 			hs.Service.Icon, hs.ScheduleUnit, hs.ScheduleNumber, checkedTime, hs.Status, newServiceStatus)
+// 		repo.broadcastMessage(
+// 			"public-channel",
+// 			"host-service-count-change",
+// 			repo.updateHostServiceCount("from testServiceForHost function"),
+// 		)
+// 	}
 
-	// Broadcast schedule-change-event
-	repo.pushScheduleChangeEvent(hs.ID, hs.HostID, h.HostName, hs.ServiceID, hs.Service.ServiceName,
-		hs.Service.Icon, hs.ScheduleUnit, hs.ScheduleNumber, t, newServiceStatus)
+// 	// Broadcast schedule-change-event
+// 	repo.pushScheduleChangeEvent(hs.ID, hs.HostID, h.HostName, hs.ServiceID, hs.Service.ServiceName,
+// 		hs.Service.Icon, hs.ScheduleUnit, hs.ScheduleNumber, checkedTime, newServiceStatus)
 
-	// TODO - send email if necessary
+// 	// TODO - send email if necessary
 
-	return newServiceStatus, msg, t
-}
+// 	return newServiceStatus, msg, checkedTime
+// }
 
 func (repo *DBRepo) pushServerStatusChangeEvent(hostServiceID int, hostID int, hostName string,
 	serviceID int, serviceName string, serviceIcon string, scheduleUnit string, scheduleNumber int,
@@ -291,23 +303,23 @@ func (repo *DBRepo) pushScheduleChangeEvent(hostServiceID int, hostID int, hostN
 	repo.broadcastMessage("public-channel", "schedule-changed-event", data)
 }
 
-func testHTTPForHost(url string) (models.ServiceStatus, string, time.Time) {
-	url = strings.TrimSuffix(url, "/")
+// func testHTTPForHost(url string) (models.ServiceStatus, string, time.Time) {
+// 	url = strings.TrimSuffix(url, "/")
 
-	url = strings.Replace(url, "https://", "http://", -1)
-	t := time.Now()
-	resp, err := http.Get(url)
-	if err != nil {
-		return models.ServiceStatusProblem, fmt.Sprintf("%s - %s", url, "error connecting"), t
-	}
-	defer resp.Body.Close()
+// 	url = strings.Replace(url, "https://", "http://", -1)
+// 	t := time.Now()
+// 	resp, err := http.Get(url)
+// 	if err != nil {
+// 		return models.ServiceStatusProblem, fmt.Sprintf("%s - %s", url, "error connecting"), t
+// 	}
+// 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK {
-		return models.ServiceStatusProblem, fmt.Sprintf("%s - %s", url, resp.Status), t
-	}
+// 	if resp.StatusCode != http.StatusOK {
+// 		return models.ServiceStatusProblem, fmt.Sprintf("%s - %s", url, resp.Status), t
+// 	}
 
-	return models.ServiceStatusHealthy, fmt.Sprintf("%s - %s", url, resp.Status), t
-}
+// 	return models.ServiceStatusHealthy, fmt.Sprintf("%s - %s", url, resp.Status), t
+// }
 
 // type ServiceTester struct {
 // 	repo       *DBRepo

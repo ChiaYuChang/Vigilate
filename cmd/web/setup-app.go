@@ -13,6 +13,7 @@ import (
 	"github.com/pusher/pusher-http-go/v5"
 	"github.com/robfig/cron/v3"
 	"gitlab.com/gjerry134679/vigilate/pkg/channeldata"
+	"gitlab.com/gjerry134679/vigilate/pkg/checker"
 	"gitlab.com/gjerry134679/vigilate/pkg/config"
 	"gitlab.com/gjerry134679/vigilate/pkg/driver"
 	"gitlab.com/gjerry134679/vigilate/pkg/handlers"
@@ -104,8 +105,9 @@ func setupApp() (*string, error) {
 
 	app = a // See main.go
 
-	repo = handlers.NewPostgresqlHandlers(db, &app)
-	handlers.NewHandlers(repo, &app)
+	checker := checker.NewDefaultServerChecker()
+	repo = handlers.NewPostgresqlHandlers(db, &app, checker)
+	handlers.NewHandlers(repo, &app, checker)
 
 	log.Println("Getting preferences...")
 	preferenceMap = make(map[string]string)
