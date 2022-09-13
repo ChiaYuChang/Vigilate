@@ -172,3 +172,15 @@ type Schedule struct {
 	HostServiceID int
 	ScheduleText  string
 }
+
+type Event struct {
+	ID            int
+	Type          string
+	HostServiceID int
+	HostID        int
+	HostName      string
+	ServiceID     int
+	ServiceName   string
+	Message       string
+	TimeInfo
+}

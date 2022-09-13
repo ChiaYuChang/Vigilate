@@ -1,10 +1,12 @@
 package handlers
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"strconv"
-	"time"
+
+	"gitlab.com/gjerry134679/vigilate/pkg/models"
 )
 
 type job struct {
@@ -27,14 +29,48 @@ func (repo *DBRepo) StopMonitoring() {
 			log.Println(err)
 		}
 
-		for key, val := range repo.App.MonitorMap {
+		for key := range repo.App.MonitorMap {
 			// remove all items from schedule
-			repo.App.Scheduler.Remove(val)
-			delete(repo.App.MonitorMap, key)
+			_, _ = repo.RemoveFromMonitorMap(key)
+			// repo.App.Scheduler.Remove(val)
+			// delete(repo.App.MonitorMap, key)
 		}
 		for _, e := range repo.App.Scheduler.Entries() {
 			repo.App.Scheduler.Remove(e.ID)
 		}
+	}
+}
+
+func (repo *DBRepo) StartMonitoring() {
+	log.Println("====== Start Monitoring Servicse !! ======")
+	if app.PreferenceMap["monitoring_live"] == "1" {
+		data := make(map[string]string)
+		data["message"] = "Monitoring is starting..."
+
+		// trigger a message to broadcast ot all clients that app is starting to monitor
+		err := app.WsClient.Trigger("public-channel", "app-starting", data)
+		if err != nil {
+			log.Println(err)
+		}
+
+		// get all of the services that we want to monitor
+		servicesToMonitor, hostName, err := repo.DB.GetServivesToMonitor()
+		if err != nil {
+			log.Println(err)
+		}
+		log.Printf("| Length of servicesToMonitor is: %d      |\n", len(servicesToMonitor))
+
+		// range through the services
+		for i := 0; i < len(hostName); i++ {
+			payload, err := repo.AddtoMonitorMap(servicesToMonitor[i], hostName[i])
+			if err != nil {
+				log.Println(err)
+				continue
+			}
+			repo.broadcastMessage("public-channel", "next-run-event", payload)
+			repo.broadcastMessage("public-channel", "next-changed-event", payload)
+		}
+
 	}
 }
 
@@ -59,81 +95,64 @@ func (repo *DBRepo) FormScheduleString(unit string, number int) (string, error) 
 		}
 	default:
 		// log.Println("unknown time unit:", unit)
+		if len(unit) < 1 {
+			return sch, errors.New("time unit is empty")
+		}
 		return sch, fmt.Errorf("unknown time unit %v", unit)
 	}
 	return sch, nil
 }
 
-func (repo *DBRepo) StartMonitoring() {
-	log.Println("====== Start Monitoring Servicse !! ======")
-	if app.PreferenceMap["monitoring_live"] == "1" {
-		data := make(map[string]string)
-		data["message"] = "Monitoring is starting..."
-
-		// trigger a message to broadcast ot all clients that app is starting to monitor
-		err := app.WsClient.Trigger("public-channel", "app-starting", data)
+func (repo *DBRepo) AddtoMonitorMap(hs models.HostService, hn string) (map[string]string, error) {
+	payload := make(map[string]string)
+	if repo.App.PreferenceMap["monitoring_live"] == "1" {
+		// log.Printf("|  - Services Name: %s            |\n", hn)
+		sch, err := repo.FormScheduleString(hs.ScheduleUnit, hs.ScheduleNumber)
 		if err != nil {
-			log.Println(err)
+			return payload, err
 		}
 
-		// get all of the services that we want to monitor
-		servicesToMonitor, hostName, err := repo.DB.GetServivesToMonitor()
+		// create a job
+		j := job{HostServiceID: hs.ID}
+		scheduleID, err := repo.App.Scheduler.AddJob(sch, j)
 		if err != nil {
-			log.Println(err)
-		}
-		log.Printf("| Length of servicesToMonitor is: %d      |\n", len(servicesToMonitor))
-
-		// range through the services
-		for i := 0; i < len(hostName); i++ {
-			hn := hostName[i]
-			s := servicesToMonitor[i]
-			log.Printf("|  - Services Name: %s            |\n", hn)
-
-			sch, err := repo.FormScheduleString(s.ScheduleUnit, s.ScheduleNumber)
-			if err != nil {
-				log.Println(err)
-				continue
-			}
-			// create a job
-			j := job{HostServiceID: s.ID}
-			scheduleID, err := app.Scheduler.AddJob(sch, j)
-			if err != nil {
-				log.Println(err)
-			}
-
-			// save the id of the job so we can start/stop it
-			app.MonitorMap[s.ID] = scheduleID
-
-			// broadcast over websockets the fact that the service is scheduled
-			payload := make(map[string]string)
-			payload["message"] = "scheduling"
-			payload["host_service_id"] = strconv.Itoa(s.ID)
-			yearOne := time.Date(0001, 11, 17, 20, 34, 58, 65138737, time.UTC)
-			if app.Scheduler.Entry(app.MonitorMap[s.ID]).Next.After(yearOne) {
-				payload["next_run"] = app.Scheduler.Entry(app.MonitorMap[s.ID]).Next.Format("2006-01-02 3:04:05 PM")
-			} else {
-				payload["next_run"] = "Pending..."
-			}
-			payload["host"] = hn
-			payload["service"] = s.Service.ServiceName
-			if s.LastCheck.After(yearOne) {
-				payload["last_run"] = s.LastCheck.Format("2006-01-02 3:04:05 PM")
-			} else {
-				payload["last_run"] = "Pending..."
-			}
-			payload["schedule"] = sch
-
-			err = app.WsClient.Trigger("public-channel", "next-run-event", payload)
-			if err != nil {
-				log.Println(err)
-			}
-
-			err = app.WsClient.Trigger("public-channel", "next-changed-event", payload)
-			if err != nil {
-				log.Println(err)
-			}
-
+			return payload, err
 		}
 
+		// save the id of the job so we can start/stop it
+		app.MonitorMap[hs.ID] = scheduleID
+
+		// broadcast over websockets the fact that the service is scheduled
+		payload["message"] = "scheduling"
+		payload["host_service_id"] = strconv.Itoa(hs.ID)
+
+		if app.Scheduler.Entry(app.MonitorMap[hs.ID]).Next.After(YearOne) {
+			payload["next_run"] = app.Scheduler.Entry(app.MonitorMap[hs.ID]).Next.Format("2006-01-02 3:04:05 PM")
+		} else {
+			payload["next_run"] = "Pending..."
+		}
+		payload["host"] = hn
+		payload["service"] = hs.Service.ServiceName
+		if hs.LastCheck.After(YearOne) {
+			payload["last_run"] = hs.LastCheck.Format("2006-01-02 3:04:05 PM")
+		} else {
+			payload["last_run"] = "Pending..."
+		}
+		payload["schedule"] = sch
+
+		return payload, nil
 	}
+	return payload, fmt.Errorf("monitoring_live equals to %q", repo.App.PreferenceMap["monitoring_live"])
+}
+
+func (repo *DBRepo) RemoveFromMonitorMap(hostServiceID int) (map[string]string, error) {
+	payload := make(map[string]string)
+	if repo.App.PreferenceMap["monitoring_live"] == "1" {
+		entryID := repo.App.MonitorMap[hostServiceID]
+		repo.App.Scheduler.Remove(entryID)
+		delete(repo.App.MonitorMap, hostServiceID)
+		payload["host_service_id"] = strconv.Itoa(hostServiceID)
+		return payload, nil
+	}
+	return payload, fmt.Errorf("monitoring_live equals to %q", repo.App.PreferenceMap["monitoring_live"])
 }

@@ -438,3 +438,104 @@ func (m *postgresDBRepo) GetServivesToMonitor() ([]models.HostService, []string,
 	}
 	return service, hostName, nil
 }
+
+func (m *postgresDBRepo) GetHostByHostIDServiceID(hostID, serviceID int) (models.HostService, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	query := `
+	SELECT hs.id, hs.host_id, hs.service_id, hs.active, hs.schedule_number,
+	       hs.schedule_unit, hs.last_check, hs.status, hs.created_at, hs.updated_at,
+		   s.id, s.service_name, s.active, s.icon, s.created_at, s.updated_at
+	  FROM public.host_services AS hs
+	  LEFT JOIN public.services AS s
+	    ON (hs.service_id = s.id)
+	 WHERE hs.host_id = $1 AND hs.service_id = $2;
+	`
+
+	var hs models.HostService
+
+	row := m.DB.QueryRowContext(ctx, query, hostID, serviceID)
+	err := row.Scan(
+		&hs.ID, &hs.HostID, &hs.ServiceID, &hs.Active, &hs.ScheduleNumber,
+		&hs.ScheduleUnit, &hs.LastCheck, &hs.Status, &hs.CreatedAt, &hs.UpdatedAt,
+		&hs.Service.ID, &hs.Service.ServiceName, &hs.Service.Active, &hs.Service.Icon,
+		&hs.Service.CreatedAt, &hs.Service.UpdatedAt,
+	)
+
+	if err != nil {
+		return hs, err
+	}
+
+	return hs, nil
+}
+
+func (m *postgresDBRepo) InsertEvent(e models.Event) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	stmt := `
+		INSERT INTO events (host_service_id, type, host_id, service_id, message, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7);
+	`
+	_, err := m.DB.ExecContext(ctx, stmt,
+		e.HostServiceID,
+		e.Type,
+		e.HostID,
+		e.ServiceID,
+		e.Message,
+		time.Now(),
+		time.Now(),
+	)
+
+	if err != nil {
+		log.Println(err)
+		return err
+	}
+	return nil
+}
+
+func (m *postgresDBRepo) GetAllEvent() ([]models.Event, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	query := `
+	SELECT e.id, e.type, e.host_service_id, h.id, h.host_name, s.id,
+		   s.service_name, e.message, e.created_at, e.updated_at
+	  FROM public.events AS e
+	  LEFT JOIN public.services AS s
+		ON (e.service_id = s.id)
+	  LEFT JOIN public.hosts AS h
+		ON (e.host_id = h.id)
+	`
+	rows, err := m.DB.QueryContext(ctx, query)
+	events := make([]models.Event, 0)
+	if err != nil {
+		fmt.Println(err)
+		return events, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		e := models.Event{}
+		err = rows.Scan(
+			&e.ID,
+			&e.Type,
+			&e.HostServiceID,
+			&e.HostID,
+			&e.HostName,
+			&e.ServiceID,
+			&e.ServiceName,
+			&e.Message,
+			&e.CreatedAt,
+			&e.UpdatedAt,
+		)
+		if err != nil {
+			log.Println(err)
+			return events, nil
+		}
+		events = append(events, e)
+	}
+
+	return events, nil
+}

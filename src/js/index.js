@@ -8,16 +8,18 @@ function capitalizeFirstLetter(string) {
 }
 
 function removeRowInServerStatusOverviewTable(data) {
-  let tableRef = document.getElementById(
-    "overview-" + data.old_status + "-srv"
-  );
+  if (!!document.getElementById("overview-hs-" + data.host_service_id)) {
+    let tableRef = document.getElementById(
+      "overview-" + data.old_status + "-srv"
+    );
 
-  let row = document.getElementById("overview-hs-" + data.host_service_id);
-  if (tableRef.tBodies[0].childElementCount === 1) {
-    row.setAttribute("id", "no-services");
-    row.innerHTML = `<td colspan="5">No services</td>`;
-  } else {
-    row.parentNode.removeChild(row);
+    let row = document.getElementById("overview-hs-" + data.host_service_id);
+    if (tableRef.tBodies[0].childElementCount === 1) {
+      row.setAttribute("id", "no-services");
+      row.innerHTML = `<td colspan="5">No services</td>`;
+    } else {
+      row.parentNode.removeChild(row);
+    }
   }
 }
 
@@ -66,7 +68,7 @@ function updateServerStatusTable(data) {
   } else {
     frstCell.innerHTML = `<span>${data.icon}</span> ${data.service_name}
     <span class="badge bg-secondary pointer"
-        onclick="checkNow(${data.host_service_id}, "${data.status}")">
+        onclick="mylib.checkNow(${data.host_service_id}, '${data.status}')">
         Click Now
     </span>`;
   }
@@ -78,6 +80,34 @@ function updateServerStatusTable(data) {
     scndCell.innerHTML = "Pending";
   }
   let thrdCell = newRow.insertCell(2);
+}
+
+function checkNow(id, oldStatus) {
+  // console.log("Clicked check now");
+  fetch("/admin/perform-check/" + id + "/" + oldStatus)
+    .then((response) => response.json())
+    .then((data) => {
+      // console.log("OK: ", data.ok, "Message: ", data.message);
+      if (data.ok) {
+        if (data.old_status !== data.new_status) {
+          Prompt().toast({
+            msg: data.message,
+            icon: "info",
+            timer: 60000,
+            showCloseButton: true,
+          });
+        } else {
+          Prompt().toast({
+            msg: "Service is still in " + data.old_status + " state",
+            icon: "info",
+            timer: 5000,
+            showCloseButton: true,
+          });
+        }
+      } else {
+        mylib.errorAlert("Internal server error");
+      }
+    });
 }
 
 let pusher = new Pusher(process.env.PUSHER_KEY, {
@@ -92,12 +122,15 @@ let pusher = new Pusher(process.env.PUSHER_KEY, {
 let publicChannel = pusher.subscribe("public-channel");
 
 publicChannel.bind("app-starting", (data) => {
+  let toggle = document.getElementById("monitoring-live");
+  toggle.checked = true;
   successAlert(data.message);
 });
 
 publicChannel.bind("app-ending", (data) => {
+  let toggle = document.getElementById("monitoring-live");
+  toggle.checked = false;
   warningAlert(data.message);
-
   if (!!document.getElementById("schedule-table")) {
     let tableRef = document.getElementById("schedule-table");
     tableRef.tBodies[0].innerHTML = "";
@@ -110,7 +143,7 @@ publicChannel.bind("app-ending", (data) => {
 
 publicChannel.bind("host-service-status-change", (data) => {
   // successAlert(data.message);
-  console.log("receive data from host-service-status-change channel");
+  console.log("receive data from host service status change channel");
   Prompt().toast({
     msg: data.message,
     icon: "info",
@@ -136,17 +169,18 @@ publicChannel.bind("host-service-status-change", (data) => {
   // update service status overview table, if server status has changed
   // remove row if client is browsing old status page
   if (!!document.getElementById("overview-" + data.old_status + "-srv")) {
-    console.log("remove one row: " + "overview-hs-" + data.host_service_id);
+    // console.log("remove one row: " + "overview-hs-" + data.host_service_id);
     removeRowInServerStatusOverviewTable(data);
   }
   // add row if client is browsing new status page
   if (!!document.getElementById("overview-" + data.status + "-srv")) {
-    console.log("add one row");
+    // console.log("add one row");
     addRowInServerStatusOverviewTable(data);
   }
 });
 
 publicChannel.bind("host-service-count-change", (data) => {
+  console.log("receive data from host service count change channel");
   let healthyCountExists = !!document.getElementById("healthy_count");
   if (healthyCountExists) {
     if (data.healthy_count === "1") {
@@ -183,8 +217,30 @@ publicChannel.bind("host-service-count-change", (data) => {
   }
 });
 
+publicChannel.bind("schedule-item-removed-event", (data) => {
+  // console.log("receive data from schedule item removed event channel");
+  // console.log(
+  //   `a schedule item has been removed (host_service_id: ${data.host_service_id})`
+  // );
+  if (!!document.getElementById("schedule-table")) {
+    let row = document.getElementById(`schedule-${data.host_service_id}`);
+    let tableRef = row.parentNode.parentNode;
+    row.parentNode.removeChild(row);
+
+    // console.log(
+    //   `[schedule-item-removed-event] number of row ${tableRef.tBodies[0].childElementCount}`
+    // );
+
+    if (tableRef.tBodies[0].childElementCount === 0) {
+      let row = tableRef.tBodies[0].insertRow(-1);
+      row.setAttribute("id", "no-scheduled-checks");
+      row.innerHTML = `<td colspan="5">No scheduled checks!</td>`;
+    }
+  }
+});
+
 publicChannel.bind("schedule-changed-event", (data) => {
-  console.log("schedule change event");
+  // console.log("receive data from schedule change event channel");
   if (!!document.getElementById("schedule-table")) {
     let tableRef = document.getElementById("schedule-table");
 
@@ -216,7 +272,7 @@ publicChannel.bind("schedule-changed-event", (data) => {
         let cell = row.insertCell(i);
         let text = document.createTextNode(row_content[i]);
         cell.appendChild(text);
-        console.log(row_content[i]);
+        // console.log(row_content[i]);
       }
     }
   }
@@ -232,4 +288,5 @@ export {
   warningAlert,
   Prompt,
   monitoring,
+  checkNow,
 };

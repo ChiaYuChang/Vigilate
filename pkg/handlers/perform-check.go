@@ -88,7 +88,8 @@ func (repo *DBRepo) ScheduleCheck(HostServiceId int) {
 
 	switch s {
 	case ServiceHTTP:
-		newServiceStatus, message, updateTime = repo.testServiceForHost(h, hs)
+		newServiceStatus, message, updateTime = testHTTPForHost(h.URL)
+		// newServiceStatus, message, updateTime = repo.testServiceForHost(h, hs)
 	default:
 		log.Println("Currently not support.")
 		return
@@ -112,23 +113,27 @@ func (repo *DBRepo) ScheduleCheck(HostServiceId int) {
 
 	// broadcast the update info
 	if serviceStatusHasChange {
-		repo.updateHostServiceCount(message)
+		repo.broadcastMessage(
+			"public-channel",
+			"host-service-count-change",
+			repo.updateHostServiceCount(message),
+		)
 	}
 }
 
-func (repo *DBRepo) updateHostServiceCount(message string) {
+func (repo *DBRepo) updateHostServiceCount(message string) map[string]string {
 	serviceStateCount, err := repo.DB.GetAllServiceStatusCounts()
+	data := make(map[string]string)
 	if err != nil {
 		log.Println(err)
-		return
+		return data
 	}
 
-	data := make(map[string]string)
 	data["message"] = message
 	for k, v := range serviceStateCount {
 		data[k.String()+"_count"] = strconv.Itoa(v)
 	}
-	repo.broadcastMessage("public-channel", "host-service-count-change", data)
+	return data
 }
 
 func (repo *DBRepo) broadcastMessage(channel, messageType string, data map[string]string) {
@@ -161,7 +166,18 @@ func (repo *DBRepo) TestCheck(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// test the service
-	newStatus, msg, _ := repo.testServiceForHost(h, hs)
+	newServiceStatus, msg, checkedTime := repo.testServiceForHost(h, hs)
+
+	// Broadcast service change event
+	if hs.Status != newServiceStatus {
+		repo.pushScheduleChangeEvent(hs.ID, hs.HostID, h.HostName, hs.ServiceID, hs.Service.ServiceName,
+			hs.Service.Icon, hs.ScheduleUnit, hs.ScheduleNumber, checkedTime, newServiceStatus)
+		repo.broadcastMessage(
+			"public-channel",
+			"host-service-count-change",
+			repo.updateHostServiceCount("from TestCheck function"),
+		)
+	}
 
 	// create json
 	var resp jsonResp
@@ -173,7 +189,7 @@ func (repo *DBRepo) TestCheck(w http.ResponseWriter, r *http.Request) {
 			HostServiceID: hs.ID,
 			HostID:        hs.HostID,
 			OldStatus:     oldStatus,
-			NewStatus:     newStatus.String(),
+			NewStatus:     newServiceStatus.String(),
 			LastCheck:     time.Now(),
 		}
 	} else {
@@ -182,20 +198,115 @@ func (repo *DBRepo) TestCheck(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// update the host service in the database
-	hs.Status = newStatus
-	hs.UpdatedAt = time.Now()
-	hs.LastCheck = time.Now()
+	hs.Status = newServiceStatus
+	hs.UpdatedAt = checkedTime
+	hs.LastCheck = checkedTime
 	err = repo.DB.UpdateHostService(hs)
 	if err != nil {
 		log.Println(err)
 		ok = false
 	}
-	// Broadcast service change event
 
 	// send json to client
 	out, _ := json.MarshalIndent(resp, "", "    ")
 	w.Header().Set("Content-Type", "application/json")
 	w.Write(out)
+}
+
+func (repo *DBRepo) testServiceForHost(h models.Host, hs models.HostService) (models.ServiceStatus, string, time.Time) {
+	var newServiceStatus models.ServiceStatus
+	var msg string
+	var t time.Time
+
+	log.Printf("Start testing %s on %s", hs.Service.ServiceName, h.URL)
+	switch ParseService(hs.Service.ServiceName) {
+	case ServiceHTTP:
+		newServiceStatus, msg, t = testHTTPForHost(h.URL)
+	}
+	log.Printf("Old status: %s; New status: %s", hs.Status, newServiceStatus)
+
+	// broadcast to all clients
+	if hs.Status != newServiceStatus {
+		repo.pushServerStatusChangeEvent(hs.ID, hs.HostID, h.HostName, hs.ServiceID, hs.Service.ServiceName,
+			hs.Service.Icon, hs.ScheduleUnit, hs.ScheduleNumber, t, hs.Status, newServiceStatus)
+		repo.broadcastMessage(
+			"public-channel",
+			"host-service-count-change",
+			repo.updateHostServiceCount("from testServiceForHost function"),
+		)
+	}
+
+	// Broadcast schedule-change-event
+	repo.pushScheduleChangeEvent(hs.ID, hs.HostID, h.HostName, hs.ServiceID, hs.Service.ServiceName,
+		hs.Service.Icon, hs.ScheduleUnit, hs.ScheduleNumber, t, newServiceStatus)
+
+	// TODO - send email if necessary
+
+	return newServiceStatus, msg, t
+}
+
+func (repo *DBRepo) pushServerStatusChangeEvent(hostServiceID int, hostID int, hostName string,
+	serviceID int, serviceName string, serviceIcon string, scheduleUnit string, scheduleNumber int,
+	lastCheckTime time.Time, oldServiceStatus models.ServiceStatus, newServiceStatus models.ServiceStatus) {
+	data := make(map[string]string)
+	data["host_service_id"] = strconv.Itoa(hostServiceID)
+	data["host_id"] = strconv.Itoa(hostID)
+	data["host_name"] = hostName
+	data["service_id"] = strconv.Itoa(serviceID)
+	data["service_name"] = serviceName
+	data["icon"] = serviceIcon
+	data["status"] = newServiceStatus.String()
+	data["old_status"] = oldServiceStatus.String()
+
+	data["message"] = fmt.Sprintf(
+		"%s on %s reports %s",
+		serviceName, hostName, newServiceStatus.String(),
+	)
+
+	data["last_check"] = lastCheckTime.Format("2006-01-02 03:04:05 PM")
+	repo.broadcastMessage("public-channel", "host-service-status-change", data)
+}
+
+func (repo *DBRepo) pushScheduleChangeEvent(hostServiceID int, hostID int, hostName string,
+	serviceID int, serviceName string, serviceIcon string, scheduleUnit string, scheduleNumber int,
+	lastCheckTime time.Time, newServiceStatus models.ServiceStatus) {
+	data := make(map[string]string)
+	data["host_service_id"] = strconv.Itoa(hostServiceID)
+	data["host_id"] = strconv.Itoa(hostID)
+	data["host_name"] = hostName
+	data["service_id"] = strconv.Itoa(serviceID)
+	data["service_name"] = serviceName
+	data["schedule"], _ = repo.FormScheduleString(scheduleUnit, scheduleNumber)
+	if app.Scheduler.Entry(repo.App.MonitorMap[hostServiceID]).Next.After(YearOne) {
+		data["next_run"] = app.Scheduler.
+			Entry(repo.App.MonitorMap[hostServiceID]).
+			Next.
+			Format("2006-01-02 03:04:05 PM")
+	} else {
+		data["next_run"] = "Pending"
+	}
+	data["last_run"] = lastCheckTime.Format("2006-01-02 03:04:05 PM")
+	data["status"] = newServiceStatus.String()
+	data["icon"] = serviceIcon
+	repo.broadcastMessage("public-channel", "schedule-changed-event", data)
+}
+
+func testHTTPForHost(url string) (models.ServiceStatus, string, time.Time) {
+	url = strings.TrimSuffix(url, "/")
+
+	url = strings.Replace(url, "https://", "http://", -1)
+	t := time.Now()
+	resp, err := http.Get(url)
+	if err != nil {
+		return models.ServiceStatusProblem, fmt.Sprintf("%s - %s", url, "error connecting"), t
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return models.ServiceStatusProblem, fmt.Sprintf("%s - %s", url, resp.Status), t
+	}
+
+	return models.ServiceStatusHealthy, fmt.Sprintf("%s - %s", url, resp.Status), t
 }
 
 // type ServiceTester struct {
@@ -268,84 +379,3 @@ func (repo *DBRepo) TestCheck(w http.ResponseWriter, r *http.Request) {
 // 	}
 // 	return models.ServiceStatusUnknown, "error service type", time.Now()
 // }
-
-func (repo *DBRepo) testServiceForHost(h models.Host, hs models.HostService) (models.ServiceStatus, string, time.Time) {
-	var newServiceStatus models.ServiceStatus
-	var msg string
-	var t time.Time
-
-	log.Printf("Start testing %s on %s", hs.Service.ServiceName, h.URL)
-	switch ParseService(hs.Service.ServiceName) {
-	case ServiceHTTP:
-		newServiceStatus, msg, t = testHTTPForHost(h.URL)
-	}
-	log.Printf("Old status: %s; New status: %s", hs.Status, newServiceStatus)
-
-	// broadcast to all clients
-	if hs.Status != newServiceStatus {
-		var data map[string]string
-
-		log.Println("service status change!!!!!!!!!!!")
-		data = make(map[string]string)
-		data["host_id"] = strconv.Itoa(hs.HostID)
-		data["host_name"] = h.HostName
-		data["service_name"] = hs.Service.ServiceName
-		data["icon"] = hs.Service.Icon
-		data["host_service_id"] = strconv.Itoa(hs.ID)
-		data["status"] = newServiceStatus.String()
-		data["old_status"] = hs.Status.String()
-
-		data["message"] = fmt.Sprintf(
-			"%s on %s reports %s",
-			hs.Service.ServiceName, h.HostName, newServiceStatus.String(),
-		)
-
-		data["last_check"] = t.Format("2006-01-02 03:04:05 PM")
-		repo.broadcastMessage("public-channel", "host-service-status-change", data)
-	}
-
-	// Broadcast schedule-change-event
-	data := make(map[string]string)
-	data["host_service_id"] = strconv.Itoa(hs.ID)
-	data["host_id"] = strconv.Itoa(hs.HostID)
-	data["host_name"] = h.HostName
-	data["service_id"] = strconv.Itoa(hs.ServiceID)
-	data["service_name"] = hs.Service.ServiceName
-	data["schedule"], _ = repo.FormScheduleString(hs.ScheduleUnit, hs.ScheduleNumber)
-	if app.Scheduler.Entry(repo.App.MonitorMap[hs.ID]).Next.After(YearOne) {
-		data["next_run"] = app.Scheduler.
-			Entry(repo.App.MonitorMap[hs.ID]).
-			Next.
-			Format("2006-01-02 03:04:05 PM")
-	} else {
-		data["next_run"] = "Pending"
-	}
-	data["last_run"] = t.Format("2006-01-02 03:04:05 PM")
-	data["status"] = newServiceStatus.String()
-	data["icon"] = hs.Service.Icon
-	repo.broadcastMessage("public-channel", "schedule-changed-event", data)
-
-	// TODO - send email if necessary
-
-	return newServiceStatus, msg, t
-}
-
-func testHTTPForHost(url string) (models.ServiceStatus, string, time.Time) {
-	if strings.HasSuffix(url, "/") {
-		url = strings.TrimSuffix(url, "/")
-	}
-
-	url = strings.Replace(url, "https://", "http://", -1)
-	t := time.Now()
-	resp, err := http.Get(url)
-	if err != nil {
-		return models.ServiceStatusProblem, fmt.Sprintf("%s - %s", url, "error connecting"), t
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return models.ServiceStatusProblem, fmt.Sprintf("%s - %s", url, resp.Status), t
-	}
-
-	return models.ServiceStatusHealthy, fmt.Sprintf("%s - %s", url, resp.Status), t
-}

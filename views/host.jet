@@ -238,7 +238,7 @@ Host
                                             <span>{{.Service.Icon}}</span>
                                             {{.Service.ServiceName}}
                                             <span class="badge bg-secondary pointer"
-                                                onclick="checkNow({{.ID}}, 'warning')">
+                                                onclick="mylib.checkNow({{.ID}}, 'warning')">
                                                 Click Now
                                             </span>
                                         </td>
@@ -279,7 +279,7 @@ Host
                                             <span>{{.Service.Icon}}</span>
                                             {{.Service.ServiceName}}
                                             <span class="badge bg-secondary pointer"
-                                                onclick="checkNow({{.ID}}, 'problem')">
+                                                onclick="mylib.checkNow({{.ID}}, 'problem')">
                                                 Click Now
                                             </span>
                                         </td>
@@ -320,11 +320,10 @@ Host
                                             <span>{{.Service.Icon}}</span>
                                             {{.Service.ServiceName}}
                                             <span class="badge bg-secondary pointer"
-                                                onclick="checkNow({{.ID}}, 'pending')">
+                                                onclick="mylib.checkNow({{.ID}}, 'pending')">
                                                 Click Now
                                             </span>
                                         </td>
-
                                         <td>
                                             {{if dateAfterYearOne(.LastCheck)}}
                                             {{dateFromLayout(.LastCheck, "2006-01-02 15:04")}}
@@ -354,7 +353,6 @@ Host
 <script>
     const saveClose = mylib.FormSaveClose("{{form_id}}", this);
     const val = mylib.FormValidation("{{form_id}}", this);
-
     document.addEventListener("DOMContentLoaded", function () {
         let toggles = document.querySelectorAll("[data-service]");
         for (let i = 0; i < toggles.length; i++) {
@@ -386,33 +384,5 @@ Host
             })
         }
     })
-
-    function checkNow(id, oldStatus) {
-        console.log("Clicked check now")
-        fetch('/admin/perform-check/' + id + '/' + oldStatus)
-            .then(response => response.json())
-            .then(data => {
-                console.log("OK: ", data.ok, "Message: ", data.message)
-                if (data.ok) {
-                    if (data.old_status !== data.new_status) {
-                        mylib.Prompt().toast({
-                            msg: data.message,
-                            icon: "info",
-                            timer: 60000,
-                            showCloseButton: true,
-                        })
-                    } else {
-                        mylib.Prompt().toast({
-                            msg: "Service is still in " + data.old_status + " state",
-                            icon: "info",
-                            timer: 5000,
-                            showCloseButton: true,
-                        })
-                    }
-                } else {
-                    mylib.errorAlert("Internal server error");
-                }
-            })
-    }
 </script>
 {{end}}

@@ -1,12 +1,12 @@
 {{extends "./layouts/layout.jet"}}
 
 {{block css()}}
-    <link href="https://cdn.jsdelivr.net/npm/simple-datatables@latest/dist/style.css" rel="stylesheet" type="text/css">
+<link href="https://cdn.jsdelivr.net/npm/simple-datatables@latest/dist/style.css" rel="stylesheet" type="text/css">
 {{end}}
 
 
 {{block cardTitle()}}
-    Events
+Events
 {{end}}
 
 
@@ -27,16 +27,28 @@
 
         <table class="table table-condensed table-striped" id="events-table">
             <thead>
-            <tr>
-                <th>Event Type</th>
-                <th>Host</th>
-                <th>Service</th>
-                <th>Date/Time</th>
-                <th>Message</th>
-            </tr>
+                <tr>
+                    <th>Event Type</th>
+                    <th>Host</th>
+                    <th>Service</th>
+                    <th>Date/Time</th>
+                    <th>Message</th>
+                </tr>
             </thead>
             <tbody>
-
+                {{if len(events) > 0}}
+                {{range events}}
+                <tr>
+                    <td>{{.Type}}</td>
+                    <td>{{.HostName}}</td>
+                    <td>{{.ServiceName}}</td>
+                    <td>{{.dataFromLayout(.CreateAt, "2006-01-02 03:04:05 PM")}}</td>
+                    <td>{{.Message}}</td>
+                </tr>
+                {{end}}
+                {{else}}
+                <!-- <td class="dataTables-empty" colspan="5">No entries found</td> -->
+                {{end}}
             </tbody>
         </table>
     </div>
@@ -54,7 +66,7 @@
             top: "{select}{search}",
             bottom: "{info}{pager}",
             columns: [
-                {select: 3, sort: "desc"},
+                { select: 3, sort: "desc" },
             ],
         })
     });

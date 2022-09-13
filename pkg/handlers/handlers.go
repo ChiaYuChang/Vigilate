@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"runtime/debug"
 	"strconv"
+	"time"
 
 	"github.com/CloudyKit/jet/v6"
 	"github.com/go-chi/chi/v5"
@@ -21,6 +22,8 @@ import (
 //Repo is the repository
 var Repo *DBRepo
 var app *config.AppConfig
+
+// var serverChecker checker.ServerChecker
 
 // DBRepo is the db repo
 type DBRepo struct {
@@ -71,7 +74,16 @@ func (repo *DBRepo) AdminDashboard(w http.ResponseWriter, r *http.Request) {
 
 // Events displays the events page
 func (repo *DBRepo) Events(w http.ResponseWriter, r *http.Request) {
-	err := helpers.RenderPage(w, r, "events", nil, nil)
+	events, err := repo.DB.GetAllEvent()
+	if err != nil {
+		log.Println(err)
+		return
+	}
+
+	data := make(jet.VarMap)
+	data.Set("events", events)
+
+	err = helpers.RenderPage(w, r, "events", data, nil)
 	if err != nil {
 		printTemplateError(w, err)
 	}
@@ -356,6 +368,45 @@ func (repo *DBRepo) ToggleServiceForHost(w http.ResponseWriter, r *http.Request)
 		out, _ = json.MarshalIndent(serviceJSON{OK: true}, "", "    ")
 	}
 
+	// broadcast
+	hs, err := repo.DB.GetHostByHostIDServiceID(hostID, serviceID)
+	if err != nil {
+		log.Println(err)
+	}
+
+	h, err := repo.DB.GetHostByID(hostID)
+	if err != nil {
+		log.Println(err)
+	}
+
+	// add or remove host service from schedule
+	if active == 1 {
+		// add to schedule
+		log.Printf("add to schedule")
+		data, err := repo.AddtoMonitorMap(hs, h.HostName)
+		if err != nil {
+			log.Println(err)
+		} else {
+			log.Println("broadcast message")
+			repo.broadcastMessage("public-channel", "schedule-changed-event", data)
+			repo.pushScheduleChangeEvent(hs.ID, hs.HostID, h.HostName, hs.ServiceID, hs.Service.ServiceName,
+				hs.Service.Icon, hs.ScheduleUnit, hs.ScheduleNumber, time.Now(), models.ServiceStatusPending)
+			repo.pushServerStatusChangeEvent(hs.ID, hs.HostID, h.HostName, hs.ServiceID, hs.Service.ServiceName,
+				hs.Service.Icon, hs.ScheduleUnit, hs.ScheduleNumber, time.Now(), hs.Status, models.ServiceStatusPending)
+		}
+	} else {
+		// remove from schedule
+		log.Println("remove from schedule")
+		data, err := repo.RemoveFromMonitorMap(hs.ID)
+		if err != nil {
+			log.Println(err)
+		} else {
+			log.Println("broadcast message to schedule-item-removed-event")
+			repo.broadcastMessage("public-channel", "schedule-item-removed-event", data)
+		}
+	}
+	repo.updateHostServiceCount("schedule has changed")
+
 	w.Header().Set("Content-Type", "application/json")
 	w.Write(out)
 }
@@ -449,5 +500,5 @@ func show500(w http.ResponseWriter, r *http.Request) {
 }
 
 func printTemplateError(w http.ResponseWriter, err error) {
-	_, _ = fmt.Fprint(w, fmt.Sprintf(`<small><span class='text-danger'>Error executing template: %s</span></small>`, err))
+	_, _ = fmt.Fprintf(w, "<small><span class='text-danger'>Error executing template: %s</span></small>", err)
 }
