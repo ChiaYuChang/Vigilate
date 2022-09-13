@@ -42,7 +42,7 @@ Events
                     <td>{{.Type}}</td>
                     <td>{{.HostName}}</td>
                     <td>{{.ServiceName}}</td>
-                    <td>{{.dataFromLayout(.CreateAt, "2006-01-02 03:04:05 PM")}}</td>
+                    <td>{{dateFromLayout(.CreatedAt, "2006-01-02 03:04:05 PM")}}</td>
                     <td>{{.Message}}</td>
                 </tr>
                 {{end}}

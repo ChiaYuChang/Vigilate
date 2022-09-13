@@ -391,16 +391,58 @@ func (repo *DBRepo) ToggleServiceForHost(w http.ResponseWriter, r *http.Request)
 			log.Println(err)
 		} else {
 			log.Println("broadcast message")
+			oldServiceStatus := hs.Status
+			newServiceStatus := models.ServiceStatusPending
+			serviceStatusHasChange := oldServiceStatus != newServiceStatus
+			hs.Status = models.ServiceStatusPending
+
 			repo.broadcastMessage("public-channel", "schedule-changed-event", data)
+			if serviceStatusHasChange {
+				repo.pushServerStatusChangeEvent(hs.ID, hs.HostID, h.HostName, hs.ServiceID, hs.Service.ServiceName,
+					hs.Service.Icon, hs.ScheduleUnit, hs.ScheduleNumber, time.Now(), oldServiceStatus, newServiceStatus)
+				// update status to pending
+				message := fmt.Sprintf(
+					"host service %s on %s has change to %s",
+					hs.Service.ServiceName, h.HostName, newServiceStatus.String(),
+				)
+				repo.DB.UpdateHostService(hs)
+				repo.broadcastMessage(
+					"public-channel",
+					"host-service-count-change",
+					repo.updateHostServiceCount(message),
+				)
+
+				// e := models.Event{
+				// 	Type:          "",
+				// 	HostServiceID: hs.HostID,
+				// 	HostID:        h.ID,
+				// 	HostName:      h.HostName,
+				// 	ServiceID:     hs.Service.ID,
+				// 	ServiceName:   hs.Service.ServiceName,
+				// 	Message:       fmt.Sprintf("%s - %s", h.URL, ""),
+				// }
+				// e.CreatedAt = time.Now()
+				// e.UpdatedAt = time.Now()
+				// repo.DB.InsertEvent(e)
+			}
 			repo.pushScheduleChangeEvent(hs.ID, hs.HostID, h.HostName, hs.ServiceID, hs.Service.ServiceName,
-				hs.Service.Icon, hs.ScheduleUnit, hs.ScheduleNumber, time.Now(), models.ServiceStatusPending)
-			repo.pushServerStatusChangeEvent(hs.ID, hs.HostID, h.HostName, hs.ServiceID, hs.Service.ServiceName,
-				hs.Service.Icon, hs.ScheduleUnit, hs.ScheduleNumber, time.Now(), hs.Status, models.ServiceStatusPending)
+				hs.Service.Icon, hs.ScheduleUnit, hs.ScheduleNumber, time.Now(), hs.Status)
 		}
 	} else {
 		// remove from schedule
 		log.Println("remove from schedule")
 		data, err := repo.RemoveFromMonitorMap(hs.ID)
+		hs.Status = models.ServiceStatusUnknown
+		message := fmt.Sprintf(
+			"host service %s on %s is inactived",
+			hs.Service.ServiceName, h.HostName,
+		)
+		repo.DB.UpdateHostService(hs)
+		repo.broadcastMessage(
+			"public-channel",
+			"host-service-count-change",
+			repo.updateHostServiceCount(message),
+		)
 		if err != nil {
 			log.Println(err)
 		} else {

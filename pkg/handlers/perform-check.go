@@ -86,7 +86,7 @@ func (repo *DBRepo) ScheduleCheck(HostServiceId int) {
 	// var message string
 	// var updateTime time.Time
 
-	newServiceStatus, message, updateTime := repo.Checker.CheckerSelector(h.URL, s, nil)
+	newServiceStatus, checkerMessage, updateTime := repo.Checker.CheckerSelector(h.URL, s, nil)
 	// switch s {
 	// case checker.ServiceHTTP:
 	// 	newServiceStatus, message, updateTime = testHTTPForHost(h.URL)
@@ -96,13 +96,13 @@ func (repo *DBRepo) ScheduleCheck(HostServiceId int) {
 	// 	log.Println("Currently not support.")
 	// 	return
 	// }
-	log.Printf("New Status: %s; Message: %s", newServiceStatus, message)
+	// log.Printf("New Status: %s; Message: %s", newServiceStatus, checkerMessage)
 
 	// update host service record in db with status and update the last check time
 	serviceStatusHasChange := hs.Status != newServiceStatus
 	hs.Status = newServiceStatus
 	hs.LastCheck = updateTime
-	message = fmt.Sprintf(
+	message := fmt.Sprintf(
 		"host service %s on %s has change to %s",
 		hs.Service.ServiceName, h.HostName, newServiceStatus.String(),
 	)
@@ -124,6 +124,21 @@ func (repo *DBRepo) ScheduleCheck(HostServiceId int) {
 			"host-service-count-change",
 			repo.updateHostServiceCount(message),
 		)
+		e := models.Event{
+			Type:          hs.Status.String(),
+			HostServiceID: hs.HostID,
+			HostID:        h.ID,
+			HostName:      h.HostName,
+			ServiceID:     hs.Service.ID,
+			ServiceName:   hs.Service.ServiceName,
+			Message:       checkerMessage,
+		}
+		e.CreatedAt = time.Now()
+		e.UpdatedAt = time.Now()
+		err = repo.DB.InsertEvent(e)
+		if err != nil {
+			log.Println(err)
+		}
 	}
 }
 
@@ -172,21 +187,17 @@ func (repo *DBRepo) TestCheck(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// test the service
-	// newServiceStatus, msg, checkedTime := repo.testServiceForHost(h, hs)
-	newServiceStatus, msg, checkedTime := repo.Checker.
+	// newServiceStatus, checkerMessage, checkedTime := repo.testServiceForHost(h, hs)
+	newServiceStatus, checkerMessage, checkedTime := repo.Checker.
 		CheckerSelector(h.URL, checker.ParseService(hs.Service.ServiceName), nil)
 
 	// Broadcast service change event
-	if hs.Status != newServiceStatus {
+	serviceStatusHasChange := hs.Status != newServiceStatus
+	if serviceStatusHasChange {
 		repo.pushServerStatusChangeEvent(hs.ID, hs.HostID, h.HostName, hs.ServiceID, hs.Service.ServiceName,
 			hs.Service.Icon, hs.ScheduleUnit, hs.ScheduleNumber, checkedTime, hs.Status, newServiceStatus)
 		repo.pushScheduleChangeEvent(hs.ID, hs.HostID, h.HostName, hs.ServiceID, hs.Service.ServiceName,
 			hs.Service.Icon, hs.ScheduleUnit, hs.ScheduleNumber, checkedTime, newServiceStatus)
-		repo.broadcastMessage(
-			"public-channel",
-			"host-service-count-change",
-			repo.updateHostServiceCount("from TestCheck function"),
-		)
 	}
 
 	// create json
@@ -194,7 +205,7 @@ func (repo *DBRepo) TestCheck(w http.ResponseWriter, r *http.Request) {
 	if ok {
 		resp = jsonResp{
 			OK:            ok,
-			Message:       msg,
+			Message:       checkerMessage,
 			ServiceID:     hs.ServiceID,
 			HostServiceID: hs.ID,
 			HostID:        hs.HostID,
@@ -215,6 +226,29 @@ func (repo *DBRepo) TestCheck(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Println(err)
 		ok = false
+	}
+
+	if serviceStatusHasChange {
+		repo.broadcastMessage(
+			"public-channel",
+			"host-service-count-change",
+			repo.updateHostServiceCount("from TestCheck function"),
+		)
+		e := models.Event{
+			Type:          hs.Status.String(),
+			HostServiceID: hs.HostID,
+			HostID:        h.ID,
+			HostName:      h.HostName,
+			ServiceID:     hs.Service.ID,
+			ServiceName:   hs.Service.ServiceName,
+			Message:       checkerMessage,
+		}
+		e.CreatedAt = time.Now()
+		e.UpdatedAt = time.Now()
+		err = repo.DB.InsertEvent(e)
+		if err != nil {
+			log.Println(err)
+		}
 	}
 
 	// send json to client
