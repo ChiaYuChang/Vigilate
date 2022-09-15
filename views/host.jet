@@ -208,7 +208,7 @@ Host
                                             Healthy
                                             {{end}}
                                         </td>
-                                        <td></td>
+                                        <td>{{.LastMessage}}</td>
                                     </tr>
                                     {{end}}
                                     {{end}}
@@ -249,7 +249,7 @@ Host
                                             Warning
                                             {{end}}
                                         </td>
-                                        <td></td>
+                                        <td>{{.LastMessage}}</td>
                                     </tr>
                                     {{end}}
                                     {{end}}
@@ -290,7 +290,7 @@ Host
                                             Problem
                                             {{end}}
                                         </td>
-                                        <td></td>
+                                        <td>{{.LastMessage}}</td>
                                     </tr>
                                     {{end}}
                                     {{end}}
@@ -331,7 +331,7 @@ Host
                                             Pending
                                             {{end}}
                                         </td>
-                                        <td></td>
+                                        <td>{{.LastMessage}}</td>
                                     </tr>
                                     {{end}}
                                     {{end}}

@@ -43,7 +43,7 @@ Problem Services
                     <td>
                         <span class="badge bg-danger">Problem</span>
                     </td>
-                    <td>""</td>
+                    <td>{{.[5]}}</td>
                 </tr>
                 {{end}}
                 {{else}}

@@ -41,7 +41,7 @@ Warning Services
                     <td><a href="/admin/host/{{.[1]}}#warning-content">{{.[2]}}</a></td>
                     <td>{{.[4]}}</td>
                     <td><span class="badge bg-warning text-dark">Warning</span></td>
-                    <td>""</td>
+                    <td>{{.[5]}}</td>
                 </tr>
                 {{end}}
                 {{else}}

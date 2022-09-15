@@ -66,7 +66,7 @@ func (m *postgresDBRepo) GetHostByID(id int) (models.Host, error) {
 
 	query = `
 	SELECT hs.id, hs.host_id, hs.service_id, hs.active, hs.schedule_number,
-		   hs.schedule_unit, hs.last_check, hs.status, hs.created_at, hs.updated_at,
+		   hs.schedule_unit, hs.last_check, hs.last_message, hs.status, hs.created_at, hs.updated_at,
 		   s.id, s.service_name, s.active, s.icon, s.created_at, s.updated_at
 	  FROM host_services AS hs
       LEFT JOIN services AS s
@@ -86,7 +86,7 @@ func (m *postgresDBRepo) GetHostByID(id int) (models.Host, error) {
 		hs := models.HostService{}
 		err = rows.Scan(
 			&hs.ID, &hs.HostID, &hs.ServiceID, &hs.Active, &hs.ScheduleNumber,
-			&hs.ScheduleUnit, &hs.LastCheck, &hs.Status, &hs.CreatedAt, &hs.UpdatedAt,
+			&hs.ScheduleUnit, &hs.LastCheck, &hs.LastMessage, &hs.Status, &hs.CreatedAt, &hs.UpdatedAt,
 			&hs.Service.ID, &hs.Service.ServiceName, &hs.Service.Active, &hs.Service.Icon,
 			&hs.Service.CreatedAt, &hs.Service.UpdatedAt,
 		)
@@ -130,7 +130,7 @@ func (m *postgresDBRepo) GetAllHost() ([]models.Host, error) {
 
 		hs_query := `
 		SELECT hs.id, hs.host_id, hs.service_id, hs.active, hs.schedule_number,
-			   hs.schedule_unit, hs.last_check, hs.status, hs.created_at, hs.updated_at,
+			   hs.schedule_unit, hs.last_check, hs.last_message, hs.status, hs.created_at, hs.updated_at,
 		       s.id, s.service_name, s.active, s.icon, s.created_at, s.updated_at
 	      FROM host_services AS hs
    		  LEFT JOIN services AS s
@@ -147,7 +147,7 @@ func (m *postgresDBRepo) GetAllHost() ([]models.Host, error) {
 
 			err = hs_rows.Scan(
 				&hs.ID, &hs.HostID, &hs.ServiceID, &hs.Active, &hs.ScheduleNumber,
-				&hs.ScheduleUnit, &hs.LastCheck, &hs.Status, &hs.CreatedAt, &hs.UpdatedAt,
+				&hs.ScheduleUnit, &hs.LastCheck, &hs.LastMessage, &hs.Status, &hs.CreatedAt, &hs.UpdatedAt,
 				&hs.Service.ID, &hs.Service.ServiceName, &hs.Service.Active, &hs.Service.Icon,
 				&hs.Service.CreatedAt, &hs.Service.UpdatedAt,
 			)
@@ -260,47 +260,6 @@ func (m *postgresDBRepo) UpdateHostService(hs models.HostService) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	// qry := `
-	// SELECT *
-	//   FROM public.host_services
-	//  WHERE host_id = $1
-	// `
-	// row := m.DB.QueryRowContext(ctx, qry, hs.ID)
-	// ohs := models.HostService{}
-
-	// mp := map[string]string{
-	// 	"ID": "int", "HostID": "int", "ServiceID": "int",
-	// 	"Active": "int", "ScheduleNumber": "int",
-	// 	"ScheduleUnit": "string", "LastCheck": "time",
-	// 	"CreatedAt": "time", "Status": "ServiceStatus"
-	// }
-
-	// err := row.Scan(
-	// 	&ohs.ID, &ohs.HostID, &ohs.ServiceID,
-	// 	&ohs.Active, &ohs.ScheduleNumber, &ohs.ScheduleUnit,
-	// 	&ohs.LastCheck, &ohs.CreatedAt, &ohs.Status,
-	// )
-	// if err != nil {
-	// 	return err
-	// }
-
-	// for _, f := range fieldName {
-	// 	switch mp[f] {
-	// 	case "string":
-	// 		nfv := reflect.ValueOf(&hs).FieldByName(f).Elem()
-	// 		reflect.ValueOf(&ohs).FieldByName(f).SetString(nfv)
-	// 	case "int":
-	// 		nfv := reflect.ValueOf(&hs).FieldByName(f).Elem()
-	// 		reflect.ValueOf(&ohs).FieldByName(f).SetInt(nfv)
-	// 	case "time":
-	// 		nfv := reflect.ValueOf(&hs).FieldByName(f).Elem()
-	// 		nfv.Convert(reflect.TypeOf(time.Time))
-	// 		reflect.ValueOf(&ohs).FieldByName(f).Set(nfv)
-	// 	case "ServiceStatus":
-
-	// 	}
-	// }
-
 	stmt := `
 	UPDATE public.host_services
 	   SET host_id = $1,
@@ -309,13 +268,14 @@ func (m *postgresDBRepo) UpdateHostService(hs models.HostService) error {
 		   schedule_number = $4,
 		   schedule_unit = $5,
 		   last_check = $6,
-		   status = $7,
-		   updated_at = $8
-     WHERE id = $9;
+		   last_message = $7,
+		   status = $8,
+		   updated_at = $9
+     WHERE id = $10;
 	`
 	_, err := m.DB.ExecContext(ctx, stmt,
 		hs.HostID, hs.ServiceID, hs.Active, hs.ScheduleNumber, hs.ScheduleUnit,
-		hs.LastCheck, int(hs.Status), hs.UpdatedAt, hs.ID,
+		hs.LastCheck, hs.LastMessage, int(hs.Status), hs.UpdatedAt, hs.ID,
 	)
 
 	if err != nil {
@@ -325,12 +285,12 @@ func (m *postgresDBRepo) UpdateHostService(hs models.HostService) error {
 	return nil
 }
 
-func (m *postgresDBRepo) GetServiceByStatus(status models.ServiceStatus) ([][5]string, error) {
+func (m *postgresDBRepo) GetServiceByStatus(status models.ServiceStatus) ([][6]string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
 	qry := `
-	SELECT hs.id, h.id, h.host_name, s.id, s.service_name
+	SELECT hs.id, h.id, h.host_name, s.id, s.service_name, hs.last_message
       FROM host_services as hs
       LEFT JOIN services as s
         ON hs.service_id = s.id
@@ -339,7 +299,7 @@ func (m *postgresDBRepo) GetServiceByStatus(status models.ServiceStatus) ([][5]s
      WHERE hs.status = $1 AND hs.active = 1
 	 ORDER By h.host_name, s.service_name;`
 
-	hostServiceNamePair := make([][5]string, 0)
+	hostServiceNamePair := make([][6]string, 0)
 	rows, err := m.DB.QueryContext(ctx, qry, int(status))
 	if err != nil {
 		fmt.Println(err)
@@ -348,9 +308,9 @@ func (m *postgresDBRepo) GetServiceByStatus(status models.ServiceStatus) ([][5]s
 	defer rows.Close()
 
 	for rows.Next() {
-		var pair = [5]string{}
+		var pair = [6]string{}
 		var hsID, hID, sID int
-		err = rows.Scan(&hsID, &hID, &pair[2], &sID, &pair[4])
+		err = rows.Scan(&hsID, &hID, &pair[2], &sID, &pair[4], &pair[5])
 		pair[0] = strconv.Itoa(hsID)
 		pair[1] = strconv.Itoa(hID)
 		pair[3] = strconv.Itoa(sID)
@@ -370,7 +330,7 @@ func (m *postgresDBRepo) GetHostServiceByID(id int) (models.HostService, error) 
 
 	query := `
 	SELECT hs.id, hs.host_id, hs.service_id, hs.active, hs.schedule_number,
-	       hs.schedule_unit, hs.last_check, hs.status, hs.created_at, hs.updated_at,
+	       hs.schedule_unit, hs.last_check, hs.last_message, hs.status, hs.created_at, hs.updated_at,
 		   s.id, s.service_name, s.active, s.icon, s.created_at, s.updated_at
 	  FROM public.host_services AS hs
 	  LEFT JOIN public.services AS s
@@ -383,7 +343,7 @@ func (m *postgresDBRepo) GetHostServiceByID(id int) (models.HostService, error) 
 	row := m.DB.QueryRowContext(ctx, query, id)
 	err := row.Scan(
 		&hs.ID, &hs.HostID, &hs.ServiceID, &hs.Active, &hs.ScheduleNumber,
-		&hs.ScheduleUnit, &hs.LastCheck, &hs.Status, &hs.CreatedAt, &hs.UpdatedAt,
+		&hs.ScheduleUnit, &hs.LastCheck, &hs.LastMessage, &hs.Status, &hs.CreatedAt, &hs.UpdatedAt,
 		&hs.Service.ID, &hs.Service.ServiceName, &hs.Service.Active, &hs.Service.Icon,
 		&hs.Service.CreatedAt, &hs.Service.UpdatedAt,
 	)
@@ -401,7 +361,7 @@ func (m *postgresDBRepo) GetServivesToMonitor() ([]models.HostService, []string,
 
 	qry := `
 	SELECT hs.id, hs.host_id, hs.service_id, hs.active, hs.schedule_number,
-	       hs.schedule_unit, hs.last_check, hs.status, hs.created_at, hs.updated_at,
+	       hs.schedule_unit, hs.last_check, hs.last_message, hs.status, hs.created_at, hs.updated_at,
 		   s.id, s.service_name, s.active, s.icon, s.created_at, s.updated_at, h.host_name
 	  FROM public.host_services AS hs
 	  LEFT JOIN public.services AS s
@@ -423,7 +383,7 @@ func (m *postgresDBRepo) GetServivesToMonitor() ([]models.HostService, []string,
 		var hs models.HostService
 		err := rows.Scan(
 			&hs.ID, &hs.HostID, &hs.ServiceID, &hs.Active, &hs.ScheduleNumber,
-			&hs.ScheduleUnit, &hs.LastCheck, &hs.Status, &hs.CreatedAt,
+			&hs.ScheduleUnit, &hs.LastCheck, &hs.LastMessage, &hs.Status, &hs.CreatedAt,
 			&hs.UpdatedAt, &hs.ServiceID, &hs.Service.ServiceName,
 			&hs.Service.Active, &hs.Service.Icon, &hs.Service.CreatedAt,
 			&hs.Service.UpdatedAt, &hn,
@@ -445,7 +405,7 @@ func (m *postgresDBRepo) GetHostByHostIDServiceID(hostID, serviceID int) (models
 
 	query := `
 	SELECT hs.id, hs.host_id, hs.service_id, hs.active, hs.schedule_number,
-	       hs.schedule_unit, hs.last_check, hs.status, hs.created_at, hs.updated_at,
+	       hs.schedule_unit, hs.last_check, hs.last_message, hs.status, hs.created_at, hs.updated_at,
 		   s.id, s.service_name, s.active, s.icon, s.created_at, s.updated_at
 	  FROM public.host_services AS hs
 	  LEFT JOIN public.services AS s
@@ -458,7 +418,7 @@ func (m *postgresDBRepo) GetHostByHostIDServiceID(hostID, serviceID int) (models
 	row := m.DB.QueryRowContext(ctx, query, hostID, serviceID)
 	err := row.Scan(
 		&hs.ID, &hs.HostID, &hs.ServiceID, &hs.Active, &hs.ScheduleNumber,
-		&hs.ScheduleUnit, &hs.LastCheck, &hs.Status, &hs.CreatedAt, &hs.UpdatedAt,
+		&hs.ScheduleUnit, &hs.LastCheck, &hs.LastMessage, &hs.Status, &hs.CreatedAt, &hs.UpdatedAt,
 		&hs.Service.ID, &hs.Service.ServiceName, &hs.Service.Active, &hs.Service.Icon,
 		&hs.Service.CreatedAt, &hs.Service.UpdatedAt,
 	)

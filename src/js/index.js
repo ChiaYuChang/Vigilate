@@ -51,7 +51,7 @@ function addRowInServerStatusOverviewTable(data) {
     data.status
   )}</span>
     </td>
-    <td>""</td>
+    <td>${data.last_message}</td>
     `;
 }
 
@@ -80,6 +80,7 @@ function updateServerStatusTable(data) {
     scndCell.innerHTML = "Pending";
   }
   let thrdCell = newRow.insertCell(2);
+  thrdCell.innerHTML = `${data.last_message}`;
 }
 
 function checkNow(id, oldStatus) {
@@ -168,6 +169,7 @@ publicChannel.bind("host-service-status-change", (data) => {
 
   // update service status overview table, if server status has changed
   // remove row if client is browsing old status page
+  // console.log(`Old: ${data.old_status}, New ${data.status}`);
   if (!!document.getElementById("overview-" + data.old_status + "-srv")) {
     // console.log("remove one row: " + "overview-hs-" + data.host_service_id);
     removeRowInServerStatusOverviewTable(data);

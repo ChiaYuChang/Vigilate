@@ -90,7 +90,8 @@ CREATE TABLE public.host_services (
     last_check timestamp without time zone DEFAULT '0001-01-01 00:00:01'::timestamp without time zone NOT NULL,
     created_at timestamp without time zone NOT NULL,
     updated_at timestamp without time zone NOT NULL,
-    status integer DEFAULT 0 NOT NULL
+    status integer DEFAULT 0 NOT NULL,
+    last_message character varying(255) DEFAULT ''::character varying NOT NULL
 );
 
 

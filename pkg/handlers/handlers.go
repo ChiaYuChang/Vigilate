@@ -399,7 +399,7 @@ func (repo *DBRepo) ToggleServiceForHost(w http.ResponseWriter, r *http.Request)
 			repo.broadcastMessage("public-channel", "schedule-changed-event", data)
 			if serviceStatusHasChange {
 				repo.pushServerStatusChangeEvent(hs.ID, hs.HostID, h.HostName, hs.ServiceID, hs.Service.ServiceName,
-					hs.Service.Icon, hs.ScheduleUnit, hs.ScheduleNumber, time.Now(), oldServiceStatus, newServiceStatus)
+					hs.Service.Icon, hs.ScheduleUnit, hs.ScheduleNumber, time.Now(), oldServiceStatus, newServiceStatus, "start monitoring")
 				// update status to pending
 				message := fmt.Sprintf(
 					"host service %s on %s has change to %s",

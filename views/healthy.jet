@@ -43,7 +43,7 @@ Healthy Services
                     </td>
                     <td>{{.[4]}}</td>
                     <td><span class="badge bg-success">Healthy</span></td>
-                    <td>""</td>
+                    <td>{{.[5]}}</td>
                 </tr>
                 {{end}}
                 {{else}}

@@ -85,7 +85,7 @@ func (repo *DBRepo) ScheduleCheck(HostServiceId int) {
 	// var newServiceStatus models.ServiceStatus
 	// var message string
 	// var updateTime time.Time
-
+	var newServiceStatus, oldServiceStatus models.ServiceStatus
 	newServiceStatus, checkerMessage, updateTime := repo.Checker.CheckerSelector(h.URL, s, nil)
 	// switch s {
 	// case checker.ServiceHTTP:
@@ -100,8 +100,10 @@ func (repo *DBRepo) ScheduleCheck(HostServiceId int) {
 
 	// update host service record in db with status and update the last check time
 	serviceStatusHasChange := hs.Status != newServiceStatus
+	oldServiceStatus = hs.Status
 	hs.Status = newServiceStatus
 	hs.LastCheck = updateTime
+	hs.LastMessage = checkerMessage
 	message := fmt.Sprintf(
 		"host service %s on %s has change to %s",
 		hs.Service.ServiceName, h.HostName, newServiceStatus.String(),
@@ -116,7 +118,7 @@ func (repo *DBRepo) ScheduleCheck(HostServiceId int) {
 	// broadcast the update info
 	if serviceStatusHasChange {
 		repo.pushServerStatusChangeEvent(hs.ID, hs.HostID, h.HostName, hs.ServiceID, hs.Service.ServiceName,
-			hs.Service.Icon, hs.ScheduleUnit, hs.ScheduleNumber, updateTime, hs.Status, newServiceStatus)
+			hs.Service.Icon, hs.ScheduleUnit, hs.ScheduleNumber, updateTime, oldServiceStatus, newServiceStatus, checkerMessage)
 		repo.pushScheduleChangeEvent(hs.ID, hs.HostID, h.HostName, hs.ServiceID, hs.Service.ServiceName,
 			hs.Service.Icon, hs.ScheduleUnit, hs.ScheduleNumber, updateTime, newServiceStatus)
 		repo.broadcastMessage(
@@ -195,7 +197,7 @@ func (repo *DBRepo) TestCheck(w http.ResponseWriter, r *http.Request) {
 	serviceStatusHasChange := hs.Status != newServiceStatus
 	if serviceStatusHasChange {
 		repo.pushServerStatusChangeEvent(hs.ID, hs.HostID, h.HostName, hs.ServiceID, hs.Service.ServiceName,
-			hs.Service.Icon, hs.ScheduleUnit, hs.ScheduleNumber, checkedTime, hs.Status, newServiceStatus)
+			hs.Service.Icon, hs.ScheduleUnit, hs.ScheduleNumber, checkedTime, hs.Status, newServiceStatus, checkerMessage)
 		repo.pushScheduleChangeEvent(hs.ID, hs.HostID, h.HostName, hs.ServiceID, hs.Service.ServiceName,
 			hs.Service.Icon, hs.ScheduleUnit, hs.ScheduleNumber, checkedTime, newServiceStatus)
 	}
@@ -222,6 +224,7 @@ func (repo *DBRepo) TestCheck(w http.ResponseWriter, r *http.Request) {
 	hs.Status = newServiceStatus
 	hs.UpdatedAt = checkedTime
 	hs.LastCheck = checkedTime
+	hs.LastMessage = checkerMessage
 	err = repo.DB.UpdateHostService(hs)
 	if err != nil {
 		log.Println(err)
@@ -274,7 +277,7 @@ func (repo *DBRepo) TestCheck(w http.ResponseWriter, r *http.Request) {
 // 	// broadcast to all clients
 // 	if hs.Status != newServiceStatus {
 // 		repo.pushServerStatusChangeEvent(hs.ID, hs.HostID, h.HostName, hs.ServiceID, hs.Service.ServiceName,
-// 			hs.Service.Icon, hs.ScheduleUnit, hs.ScheduleNumber, checkedTime, hs.Status, newServiceStatus)
+// 			hs.Service.Icon, hs.ScheduleUnit, hs.ScheduleNumber, checkedTime, hs.Status, newServiceStatus, checkerMessage)
 // 		repo.broadcastMessage(
 // 			"public-channel",
 // 			"host-service-count-change",
@@ -291,9 +294,10 @@ func (repo *DBRepo) TestCheck(w http.ResponseWriter, r *http.Request) {
 // 	return newServiceStatus, msg, checkedTime
 // }
 
-func (repo *DBRepo) pushServerStatusChangeEvent(hostServiceID int, hostID int, hostName string,
-	serviceID int, serviceName string, serviceIcon string, scheduleUnit string, scheduleNumber int,
-	lastCheckTime time.Time, oldServiceStatus models.ServiceStatus, newServiceStatus models.ServiceStatus) {
+func (repo *DBRepo) pushServerStatusChangeEvent(hostServiceID int, hostID int,
+	hostName string, serviceID int, serviceName string, serviceIcon string,
+	scheduleUnit string, scheduleNumber int, lastCheckTime time.Time,
+	oldServiceStatus models.ServiceStatus, newServiceStatus models.ServiceStatus, checkerMessage string) {
 	data := make(map[string]string)
 	data["host_service_id"] = strconv.Itoa(hostServiceID)
 	data["host_id"] = strconv.Itoa(hostID)
@@ -310,6 +314,7 @@ func (repo *DBRepo) pushServerStatusChangeEvent(hostServiceID int, hostID int, h
 	)
 
 	data["last_check"] = lastCheckTime.Format("2006-01-02 03:04:05 PM")
+	data["last_message"] = checkerMessage
 	repo.broadcastMessage("public-channel", "host-service-status-change", data)
 }
 

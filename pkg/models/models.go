@@ -119,6 +119,7 @@ type HostService struct {
 	ScheduleUnit   string
 	Status         ServiceStatus
 	LastCheck      time.Time
+	LastMessage    string
 	Service        Services
 	TimeInfo
 }
