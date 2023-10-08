@@ -1,5 +1,5 @@
 {
-	"Host": "192.168.50.168:4002",
+	"Host": ":4002",
 	"SSL": false,
 	"SSLHost": ":4343",
 	"SSLKeyFile": "key.pem",

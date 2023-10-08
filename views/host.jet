@@ -137,6 +137,10 @@ Host
                                 </div>
 
                                 <a class="btn btn-info" href="/admin/host/all">Cancel</a>
+                                {{if host.ID>1}}
+                                <button type="button" class="btn btn-danger"
+                                    onclick="deleteHost({{host.ID}})">Delete</button>
+                                {{end}}
                             </div>
                         </div>
                     </div>
@@ -384,5 +388,29 @@ Host
             })
         }
     })
+
+    function deleteHost(id) {
+        mylib.Prompt().confirm({
+            callback: function (result) {
+                if (result !== false) {
+                    fetch(
+                        `/admin/host/delete/${id}`,
+                        {
+                            method: "GET",
+                            credentials: "same-origin"
+                        },
+                    ).then(response => {
+                        console.log(response)
+
+                        if (response.redirected) {
+                            window.location = response.url;
+                        }
+                    }).catch(error => {
+                        console.log(error)
+                    });
+                }
+            },
+        })
+    }
 </script>
 {{end}}

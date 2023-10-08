@@ -1,15 +1,15 @@
 development:
   dialect: "postgres"
-  database: {{envOr "DEV_DB_NAME" "vigilate_development"}}
-  host: {{envOr "DEV_DB_HOST" "127.0.0.1"}}
-  port: {{envOr "DEV_DB_PORT" "5432"}}
-  user: {{envOr "DB_USER_ACC" "postgres"}}
-  password: {{envOr "DB_USER_PWD" "postgres"}}
+  database: {{envOr "POSTGRES_DB" "vigilate-dev"}}
+  host: {{envOr "POSTGRES_HOST" "localhost"}}
+  port: {{envOr "POSTGRES_PORT" "5432"}}
+  user: {{envOr "POSTGRES_USERNAME" "postgres"}}
+  password: {{envOr "POSTGRES_PASSWORD" "postgres"}}
 
 production:
   dialect: "postgres"
-  database: {{envOr "DB_NAME" "vigilate"}}
-  host: {{envOr "DB_HOST" "127.0.0.1"}}
-  port: {{envOr "DEV_DB_PORT" "5432"}}
-  user: {{envOr "DB_USER_ACC" "postgres"}}
-  password: {{envOr "DB_USER_PWD" "postgres"}}
+  database: {{envOr "POSTGRES_DB" "vigilate"}}
+  host: {{envOr "POSTGRES_HOST" "localhost"}}
+  port: {{envOr "POSTGRES_PORT" "5432"}}
+  user: {{envOr "POSTGRES_USERNAME" "postgres"}}
+  password: {{envOr "POSTGRES_PASSWORD" "postgres"}}

@@ -15,6 +15,8 @@ import (
 
 // LoginScreen shows the home (login) screen
 func (repo *DBRepo) LoginScreen(w http.ResponseWriter, r *http.Request) {
+	log.Println("someone hit the login page")
+
 	// if already logged in, take to dashboard
 	if repo.App.Session.Exists(r.Context(), "userID") {
 		http.Redirect(w, r, "/admin/overview", http.StatusSeeOther)
@@ -29,6 +31,8 @@ func (repo *DBRepo) LoginScreen(w http.ResponseWriter, r *http.Request) {
 
 // Login attempts to log the user in
 func (repo *DBRepo) Login(w http.ResponseWriter, r *http.Request) {
+	log.Println("someone tried to log in")
+
 	_ = repo.App.Session.RenewToken(r.Context())
 	err := r.ParseForm()
 	if err != nil {
@@ -53,7 +57,7 @@ func (repo *DBRepo) Login(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	} else if err != nil {
-		log.Println(err)
+		log.Println("error while repo.DB.Authenticate: ", err)
 		ClientError(w, r, http.StatusBadRequest)
 		return
 	}

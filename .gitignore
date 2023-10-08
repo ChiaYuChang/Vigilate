@@ -6,3 +6,6 @@ package-lock.json
 go.sum
 .env
 vigilate
+
+secrets/
+CA/

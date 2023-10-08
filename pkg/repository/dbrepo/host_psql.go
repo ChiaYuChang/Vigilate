@@ -4,11 +4,45 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"net/url"
 	"strconv"
+	"strings"
 	"time"
 
+	"gitlab.com/gjerry134679/vigilate/pkg/checker"
 	"gitlab.com/gjerry134679/vigilate/pkg/models"
 )
+
+func (m *postgresDBRepo) GetService() (map[string]int, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	supportedServices := map[string]int{}
+
+	query := `
+		SELECT id, service_name 
+		  FROM service 
+		 WHERE active = 1;
+	`
+	rows, err := m.DB.QueryContext(ctx, query)
+	if err != nil {
+		return supportedServices, fmt.Errorf("GetService error: query service: %w", err)
+	}
+
+	for rows.Next() {
+		var id int
+		var name string
+
+		err = rows.Scan(&id, &name)
+		if err != nil {
+			log.Println(err)
+			return supportedServices, fmt.Errorf("GetService error: row scan: %w", err)
+		}
+		name = strings.ToUpper(name)
+		supportedServices[name] = id
+	}
+	return supportedServices, nil
+}
 
 func (m *postgresDBRepo) InsertHost(h models.Host) (int, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
@@ -31,12 +65,20 @@ func (m *postgresDBRepo) InsertHost(h models.Host) (int, error) {
 		return newID, err
 	}
 
+	u, _ := url.Parse(h.URL)
+	svrctyp := checker.ParseService(strings.ToUpper(u.Scheme))
+
 	stmt := `
-	INSERT INTO host_services (host_id, service_id, active, schedule_number, schedule_unit,
-	status, created_at, updated_at)
-	VALUES ($1, 1, 0, 3, 'm', $2, $3, $4);
+	INSERT INTO host_services (
+		host_id, service_id, active, 
+		schedule_number, schedule_unit,
+		status, created_at, updated_at)
+	VALUES (
+		$1, $2, 0, 
+		3, 'm', 
+		$3, $4, $5);
 	`
-	_, err = m.DB.ExecContext(ctx, stmt, newID, models.ServiceStatusPending, time.Now(), time.Now())
+	_, err = m.DB.ExecContext(ctx, stmt, newID, int(svrctyp), models.ServiceStatusPending, time.Now(), time.Now())
 	if err != nil {
 		log.Println(err)
 		return newID, err
@@ -221,7 +263,7 @@ func (m *postgresDBRepo) UpdateHost(h models.Host) error {
 			  os = $7,
 			  active = $8,
 			  updated_at = $9
-		WHERE id = $10
+		WHERE id = $10;
 	`
 	_, err := m.DB.ExecContext(ctx, stmt,
 		h.HostName, h.CanonicalName, h.URL, h.IP, h.IPv6,
@@ -233,6 +275,18 @@ func (m *postgresDBRepo) UpdateHost(h models.Host) error {
 		return err
 	}
 	return nil
+}
+
+func (m *postgresDBRepo) DeleteHost(id int) error {
+	log.Println("Hit delete host")
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	stmt := `DELETE FROM hosts WHERE id = $1;`
+	_, err := m.DB.ExecContext(ctx, stmt, id)
+
+	return err
 }
 
 func (m *postgresDBRepo) UpdateHostServiceStatusByID(hostID, serviceID, active int) error {

@@ -1,18 +1,23 @@
 package checker
 
 import (
+	"crypto/tls"
 	"fmt"
+	"net"
 	"net/http"
+	"net/url"
 	"strings"
+	"sync"
 	"time"
 
+	"gitlab.com/gjerry134679/vigilate/pkg/config"
 	"gitlab.com/gjerry134679/vigilate/pkg/models"
 )
 
 type ServiceType int
 
 const (
-	ServiceHTTP ServiceType = iota
+	ServiceHTTP ServiceType = iota + 1
 	ServiceHTTPS
 	ServiceSSLCertificate
 	ServiceUnknown
@@ -56,9 +61,18 @@ func NewEmptyServerChecker() *ServerChecker {
 	}}
 }
 
-func NewDefaultServerChecker() *ServerChecker {
+func NewDefaultServerChecker(config config.AppConfig) *ServerChecker {
 	sc := NewEmptyServerChecker()
 	sc.AppendChecker(ServiceHTTP, &HTTPServiceChecker{})
+	sc.AppendChecker(ServiceHTTPS, &HTTPSServiceChecker{
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{
+				InsecureSkipVerify: false,
+				RootCAs:            config.CertPool,
+			},
+		},
+		Once: &sync.Once{},
+	})
 	return sc
 }
 
@@ -92,7 +106,7 @@ func (t *HTTPServiceChecker) Check(url string, args map[string]any) (models.Serv
 	url = strings.Replace(url, "https://", "http://", -1)
 	checkTime := time.Now()
 
-	resp, err := http.Get(url)
+	resp, err := http.DefaultClient.Get(url)
 	if err != nil {
 		return models.ServiceStatusProblem, fmt.Sprintf("%s - %s", url, "error connecting"), checkTime
 	}
@@ -106,7 +120,41 @@ func (t *HTTPServiceChecker) Check(url string, args map[string]any) (models.Serv
 }
 
 type HTTPSServiceChecker struct {
-	EmptyChecker
+	*http.Transport
+	*http.Client
+	*sync.Once
+}
+
+func (c *HTTPSServiceChecker) Check(u string, args map[string]any) (models.ServiceStatus, string, time.Time) {
+	u = strings.TrimSuffix(u, "/")
+
+	checkTime := time.Now()
+
+	c.Once.Do(func() {
+		c.Client = &http.Client{Transport: c.Transport}
+	})
+
+	resp, err := c.Client.Get(u)
+	if err != nil {
+		uErr, ok := err.(*url.Error)
+		if ok {
+			switch uErr.Err.(type) {
+			default:
+				return models.ServiceStatusProblem, fmt.Sprintf("%s - %s", u, err), checkTime
+			case *tls.CertificateVerificationError:
+				return models.ServiceStatusWarning, fmt.Sprintf("%s - %s", u, "certificate verification error"), checkTime
+			case *net.OpError:
+				return models.ServiceStatusProblem, fmt.Sprintf("%s - %s", u, "connection error"), checkTime
+			}
+		}
+		return models.ServiceStatusProblem, fmt.Sprintf("%s - %s", u, err), checkTime
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return models.ServiceStatusProblem, fmt.Sprintf("%s - %s", u, resp.Status), checkTime
+	}
+	return models.ServiceStatusHealthy, fmt.Sprintf("%s - %s", u, resp.Status), checkTime
 }
 
 type SSLCertificateServiceChecker struct {

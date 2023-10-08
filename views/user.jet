@@ -153,15 +153,13 @@
 
     {{if user.ID != .User.ID}}
     function deleteUser(x) {
-        attention.confirm({
-            msg: "Are you sure?",
-            icon: 'warning',
+       mylib.Prompt().confirm({
             callback: function(result) {
                 if (result !== false) {
                     window.location.href = "/admin/user/delete/" + x;
                 }
             }
-        })
+       })
     }
     {{end}}
 </script>

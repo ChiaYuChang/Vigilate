@@ -1,11 +1,13 @@
 package main
 
 import (
+	"crypto/x509"
 	"flag"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/alexedwards/scs/postgresstore"
@@ -38,6 +40,7 @@ func setupApp() (*string, error) {
 	pusherKey := flag.String("pusherKey", "", "pusher key")
 	pusherSecret := flag.String("pusherSecret", "", "pusher secret")
 	pusherSecure := flag.Bool("pusherSecure", false, "pusher server uses SSL (true or false)")
+	caDir := flag.String("caDir", "./CA", "CA certificate directory")
 
 	flag.Parse()
 
@@ -91,6 +94,12 @@ func setupApp() (*string, error) {
 	dispatcher := NewDispatcher(mailQueue, maxJobMaxWorkers)
 	dispatcher.run()
 
+	// read CAs
+	certPool, err := ReadCerts(*caDir)
+	if err != nil {
+		log.Fatal("Cannot read certs", err)
+	}
+
 	// define application configuration
 	a := config.AppConfig{
 		DB:           db,
@@ -101,11 +110,12 @@ func setupApp() (*string, error) {
 		MailQueue:    mailQueue,
 		Version:      vigilateVersion,
 		Identifier:   *identifier,
+		CertPool:     certPool,
 	}
 
 	app = a // See main.go
 
-	checker := checker.NewDefaultServerChecker()
+	checker := checker.NewDefaultServerChecker(a)
 	repo = handlers.NewPostgresqlHandlers(db, &app, checker)
 	handlers.NewHandlers(repo, &app, checker)
 
@@ -171,4 +181,33 @@ func createDirIfNotExist(path string) error {
 		}
 	}
 	return nil
+}
+
+func ReadCerts(caDir string) (*x509.CertPool, error) {
+	fileEntries, err := os.ReadDir(caDir)
+	if err != nil {
+		return nil, fmt.Errorf("error while ReadCA: %w", err)
+	}
+
+	if len(fileEntries) == 0 {
+		return nil, nil
+	}
+
+	certPool, err := x509.SystemCertPool()
+	if err != nil {
+		return nil, fmt.Errorf("error while ReadCA: %w", err)
+	}
+
+	log.Println("Add certificate: ")
+	for _, fileEntry := range fileEntries {
+		if !fileEntry.IsDir() && strings.HasSuffix(fileEntry.Name(), ".crt") {
+			if b, err := os.ReadFile(caDir + "/" + fileEntry.Name()); err == nil {
+				log.Println("\t- add ", fileEntry.Name())
+				certPool.AppendCertsFromPEM(b)
+			} else {
+				log.Printf("\t- error while reading file %s: %v", fileEntry.Name(), err)
+			}
+		}
+	}
+	return certPool, nil
 }

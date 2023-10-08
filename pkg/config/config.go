@@ -1,6 +1,7 @@
 package config
 
 import (
+	"crypto/x509"
 	"html/template"
 
 	"github.com/alexedwards/scs/v2"
@@ -25,4 +26,5 @@ type AppConfig struct {
 	MailQueue     chan channeldata.MailJob
 	Version       string
 	Identifier    string
+	CertPool      *x509.CertPool
 }

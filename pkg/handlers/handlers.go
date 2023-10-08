@@ -20,7 +20,7 @@ import (
 	"gitlab.com/gjerry134679/vigilate/pkg/repository/dbrepo"
 )
 
-//Repo is the repository
+// Repo is the repository
 var Repo *DBRepo
 var app *config.AppConfig
 var serverChecker *checker.ServerChecker
@@ -238,6 +238,38 @@ func (repo *DBRepo) PostHost(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, fmt.Sprintf("/admin/host/%d", h.ID), http.StatusSeeOther)
 }
 
+func (repo *DBRepo) DeleteHost(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.Atoi(chi.URLParam(r, "id"))
+	if err != nil {
+		jsn := map[string]string{}
+		// jsn["error"] = err.Error()
+		jsn["message"] = "bad request"
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		b, _ := json.Marshal(jsn)
+		w.Write(b)
+		return
+	}
+
+	err = repo.DB.DeleteHost(id)
+	if err != nil {
+		log.Println(err)
+
+		jsn := map[string]string{}
+		// jsn["error"] = err.Error()
+		jsn["message"] = "error while deleting host"
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		b, _ := json.Marshal(jsn)
+		w.Write(b)
+		return
+	}
+
+	repo.App.Session.Put(r.Context(), "flash", "Change saved")
+	http.Redirect(w, r, "/admin/host/all", http.StatusSeeOther)
+	return
+}
+
 // AllUsers lists all admin users
 func (repo *DBRepo) AllUsers(w http.ResponseWriter, r *http.Request) {
 	vars := make(jet.VarMap)
@@ -348,7 +380,6 @@ type serviceJSON struct {
 	OK bool `json:"ok"`
 }
 
-//
 func (repo *DBRepo) ToggleServiceForHost(w http.ResponseWriter, r *http.Request) {
 	err := r.ParseForm()
 	if err != nil {
