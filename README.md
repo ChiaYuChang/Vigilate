@@ -1,11 +1,14 @@
-# Vigilate - Go WebSockets 練習
+# Vigilate - Golang WebSockets 練習
+
+## References
 
 - [Working with WebSockets in Go (Golang)](https://www.udemy.com/course/working-with-websockets-in-go/)
 - [Course code respiratory](https://github.com/tsawler/ws-udemy)
   - 已完成大部分的 UI (bootstrap)
   - 提供部份後端程式
+- [IPÊ-An open source Pusher server](https://github.com/dimiro1/ipe)
 
-# Goals
+## Goals
 
 - 以 Go 建立一個即時監測網路服務的網路應用程式 (Web application)
 - 程式需具備以下功能
