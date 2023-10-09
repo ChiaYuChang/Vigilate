@@ -41,6 +41,8 @@ func setupApp() (*string, error) {
 	pusherSecret := flag.String("pusherSecret", "", "pusher secret")
 	pusherSecure := flag.Bool("pusherSecure", false, "pusher server uses SSL (true or false)")
 	caDir := flag.String("caDir", "./CA", "CA certificate directory")
+	sslca := flag.String("sslca", "", "CA certificate file")
+	sslkey := flag.String("sslkey", "", "CA key file")
 
 	flag.Parse()
 
@@ -111,6 +113,10 @@ func setupApp() (*string, error) {
 		Version:      vigilateVersion,
 		Identifier:   *identifier,
 		CertPool:     certPool,
+		SSL: config.SSL{
+			CertificateFile: *sslca,
+			PrivateKeyFile:  *sslkey,
+		},
 	}
 
 	app = a // See main.go

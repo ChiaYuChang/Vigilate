@@ -27,4 +27,10 @@ type AppConfig struct {
 	Version       string
 	Identifier    string
 	CertPool      *x509.CertPool
+	SSL           SSL
+}
+
+type SSL struct {
+	CertificateFile string
+	PrivateKeyFile  string
 }

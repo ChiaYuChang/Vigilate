@@ -42,14 +42,13 @@ function addRowInServerStatusOverviewTable(data) {
   }
   newRow.setAttribute("id", "overview-hs-" + data.host_service_id);
   newRow.innerHTML = `
-    <td><a href="/admin/host/${data.host_id}#problem-content">${
-    data.host_name
-  }</a></td>
+    <td><a href="/admin/host/${data.host_id}#problem-content">${data.host_name
+    }</a></td>
     <td>${data.service_name}</td>
     <td>
         <span class="badge ${bg_type}">${capitalizeFirstLetter(
-    data.status
-  )}</span>
+      data.status
+    )}</span>
     </td>
     <td>${data.last_message}</td>
     `;
@@ -280,6 +279,30 @@ publicChannel.bind("schedule-changed-event", (data) => {
   }
 });
 
+function SentDeleteResp(url, method) {
+  Prompt().confirm({
+    callback: function (result) {
+      if (result !== false) {
+        fetch(
+          url,
+          {
+            method: method,
+            credentials: "same-origin"
+          },
+        ).then(response => {
+          console.log(response)
+
+          if (response.redirected) {
+            window.location = response.url;
+          }
+        }).catch(error => {
+          console.log(error)
+        });
+      }
+    },
+  })
+}
+
 export {
   pusher,
   publicChannel,
@@ -291,4 +314,5 @@ export {
   Prompt,
   monitoring,
   checkNow,
+  SentDeleteResp,
 };

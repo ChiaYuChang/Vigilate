@@ -152,15 +152,10 @@
     })();
 
     {{if user.ID != .User.ID}}
-    function deleteUser(x) {
-       mylib.Prompt().confirm({
-            callback: function(result) {
-                if (result !== false) {
-                    window.location.href = "/admin/user/delete/" + x;
-                }
-            }
-       })
+    function deleteUser(id) {
+       mylib.SentDeleteResp(`/admin/user/delete/${id}`, "GET")
     }
     {{end}}
+
 </script>
 {{end}}

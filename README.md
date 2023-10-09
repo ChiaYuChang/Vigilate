@@ -1,11 +1,11 @@
-# Go WebSockets 練習
+# Vigilate - Go WebSockets 練習
 
 - [Working with WebSockets in Go (Golang)](https://www.udemy.com/course/working-with-websockets-in-go/)
 - [Course code respiratory](https://github.com/tsawler/ws-udemy)
   - 已完成大部分的 UI (bootstrap)
   - 提供部份後端程式
 
-# 目標
+# Goals
 
 - 以 Go 建立一個即時監測網路服務的網路應用程式 (Web application)
 - 程式需具備以下功能
@@ -23,10 +23,5 @@
   - 可監測服務種類
     - [x] HTTP
     - [x] HTTPS
-
-# 實踐
-
-- 以 PostgreSQL 作為資料庫
-- 以 WebSocket 作為連線方式
-- 以 webpack 打包 javascript 檔案
--
+  - 關閉應用程式
+    - [x] 優雅的關機(Graceful Shutdown)

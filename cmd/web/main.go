@@ -1,11 +1,15 @@
 package main
 
 import (
+	"context"
 	"encoding/gob"
+	"errors"
 	"log"
 	"net/http"
 	"os"
+	"os/signal"
 	"runtime"
+	"syscall"
 	"time"
 
 	"github.com/alexedwards/scs/v2"
@@ -62,10 +66,38 @@ func main() {
 	}
 
 	log.Printf("Starting HTTP server on port %s....", *insecurePort)
-
 	// start the server
-	err = srv.ListenAndServe()
-	if err != nil {
-		log.Fatal(err)
+	eChan := make(chan error)
+	go func(eChan chan<- error) {
+		if app.SSL.CertificateFile != "" && app.SSL.PrivateKeyFile != "" {
+			eChan <- srv.ListenAndServeTLS(app.SSL.CertificateFile, app.SSL.PrivateKeyFile)
+		} else {
+			eChan <- srv.ListenAndServe()
+		}
+	}(eChan)
+
+	signalChan := make(chan os.Signal)
+	signal.Notify(signalChan, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGTERM)
+	go func(signalChan <-chan os.Signal, eChan chan<- error) {
+		sig := <-signalChan
+		log.Println("received signal: ", sig)
+
+		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer shutdownCancel()
+
+		eChan <- srv.Shutdown(shutdownCtx)
+		eChan <- app.DB.SQL.Close()
+	}(signalChan, eChan)
+
+	for i := 0; i < 3; i++ {
+		err := <-eChan
+		if errors.Is(err, http.ErrServerClosed) {
+			log.Println("server successfully shutdown")
+			continue
+		}
+		if err != nil {
+			log.Println("error:", err)
+		}
 	}
+	log.Println("app shutdown gracefully")
 }
